@@ -462,17 +462,21 @@
         }
         fb.cx.fillRect(x, y, dim, dim);
         fb.cx.restore();
-        if (Tile.spd < this.dx) {
-            this.dx -= Tile.spd;
-        } else if (-Tile.spd > this.dx) {
-            this.dx += Tile.spd;
+        var spd = (Tile.spd * tick.dt) | 0;
+        if (1 > spd) {
+            spd = 1;
+        }
+        if (spd < this.dx) {
+            this.dx -= spd;
+        } else if (-spd > this.dx) {
+            this.dx += spd;
         } else {
             this.dx = 0;
         }
-        if (Tile.spd < this.dy) {
-            this.dy -= Tile.spd;
-        } else if (-Tile.spd > this.dy) {
-            this.dy += Tile.spd;
+        if (spd < this.dy) {
+            this.dy -= spd;
+        } else if (-spd > this.dy) {
+            this.dy += spd;
         } else {
             this.dy = 0;
         }
@@ -495,7 +499,7 @@
     Tile.dim = 64;
     Tile.fDim = (Tile.dim * 1.25) | 0;
     Tile.ftd = 500;
-    Tile.spd = 10;
+    Tile.spd = Tile.dim / 200;
     Tile.types = ['#f00', '#ff0', '#0f0', '#0ff'];
     Tile.near = [
         {c: -1, r: 0},
