@@ -585,20 +585,24 @@
             var c = tile._c;
             var r = tile._r;
             if (undefined === idx[c]) {
-                idx[c] = {min: r, max: r};
+                idx[c] = r;
             } else {
-                idx[c].min = Math.min(idx[c].min, r);
-                idx[c].max = Math.max(idx[c].max, r);
+                idx[c] = Math.max(idx[c], r);
             }
         }
         for (c = 0; c < grid._c; c++) {
             if (undefined === idx[c]) {
                 continue;
             }
-            var dr = idx[c].max - idx[c].min + 1;
-            var dy = Tile.dim * -dr;
-            for (r = idx[c].max; r >= 0; r--) {
-                var r1 = r - dr;
+            var dr = -1;
+            var dy = Tile.dim * dr;
+            for (r = idx[c]; r >= 0; r--) {
+                var r1 = r + dr;
+                while (0 <= r1 && undefined !== grid._tiles[c][r1].fts) {
+                    dr--;
+                    dy -= Tile.dim;
+                    r1--;
+                }
                 if (0 > r1) {
                     grid._tiles[c][r].set(Tile.types[prng(Tile.types.length)], dy);
                 } else {
@@ -793,8 +797,7 @@
             if (undefined === gameScn._chk[c]) {
                 continue;
             }
-            var r = gameScn._chk[c].max;
-            if (0 !== grid._tiles[c][r].dy) {
+            if (0 !== grid._tiles[c][0].dy) {
                 return;
             }
         }
@@ -803,7 +806,7 @@
             if (undefined === gameScn._chk[c]) {
                 continue;
             }
-            for (r = gameScn._chk[c].max; r >= 0; r--) {
+            for (r = gameScn._chk[c]; r >= 0; r--) {
                 tiles = grid.cnt(grid._tiles[c][r]);
                 if (3 <= tiles.length) {
                     chain = chain.concat(tiles);
