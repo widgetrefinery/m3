@@ -477,6 +477,12 @@
             this.dy = 0;
         }
     };
+    Tile.prototype.set = function(type, dy) {
+        this._type = type;
+        this.dx = 0;
+        this.dy = dy;
+        this.fts = undefined;
+    };
     Tile.swp = function(t0, t1) {
         var t = t0._type;
         t0._type = t1._type;
@@ -567,6 +573,35 @@
             }
         }
         return tiles;
+    };
+    grid.replace = function(tiles) {
+        var idx = [];
+        for (var i = 0; i < tiles.length; i++) {
+            var tile = tiles[i];
+            var c = tile._c;
+            var r = tile._r;
+            if (undefined === idx[c]) {
+                idx[c] = {min: r, max: r};
+            } else {
+                idx[c].min = Math.min(idx[c].min, r);
+                idx[c].max = Math.max(idx[c].max, r);
+            }
+        }
+        for (c = 0; c < grid._c; c++) {
+            if (undefined === idx[c]) {
+                continue;
+            }
+            var dr = idx[c].max - idx[c].min + 1;
+            var dy = Tile.dim * -dr;
+            for (r = idx[c].max; r >= 0; r--) {
+                var r1 = r - dr;
+                if (0 > r1) {
+                    grid._tiles[c][r].set(Tile.types[prng(Tile.types.length)], dy);
+                } else {
+                    grid._tiles[c][r].set(grid._tiles[c][r1]._type, dy);
+                }
+            }
+        }
     };
     grid.ondn = function() {
         if (io.st.x0 < grid._x
@@ -679,6 +714,11 @@
         scn.fb1.cx.fillRect(0, 0, scn.fb1.cv.width, scn.fb1.cv.height);
         if (0 === gameScn._st) {
             gameScn.io();
+        } else if (1 === gameScn._st) {
+            if (gameScn._fTiles[0].fts + Tile.ftd <= tick.ts) {
+                grid.replace(gameScn._fTiles);
+                gameScn._st = 2;
+            }
         }
         grid();
     }
@@ -697,7 +737,7 @@
             for (var i = 0; i < tiles.length; i++) {
                     tiles[i].fts = tick.ts;
             }
-            gameScn.ts = tick.ts + Tile.ftd;
+            gameScn._fTiles = tiles;
             gameScn._st = 1;
         }
     };
