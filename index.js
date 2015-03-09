@@ -445,7 +445,31 @@
     Tile.prototype.draw = function(fb, dim) {
         fb.cx.fillStyle = this._type;
         fb.cx.fillRect(this._x + this.dx, this._y + this.dy, dim, dim);
+        if (Tile.spd < this.dx) {
+            this.dx -= Tile.spd;
+        } else if (-Tile.spd > this.dx) {
+            this.dx += Tile.spd;
+        } else {
+            this.dx = 0;
+        }
+        if (Tile.spd < this.dy) {
+            this.dy -= Tile.spd;
+        } else if (-Tile.spd > this.dy) {
+            this.dy += Tile.spd;
+        } else {
+            this.dy = 0;
+        }
     };
+    Tile.swp = function(t0, t1) {
+        var t = t0._type;
+        t0._type = t1._type;
+        t1._type = t;
+        t0.dx = 0;
+        t0.dy = 0;
+        t1.dx = 0;
+        t1.dy = 0;
+    }
+    Tile.spd = 10;
     Tile.types = ['#f00', '#ff0', '#0f0', '#0ff'];
     Tile.near = [
         {c: -1, r: 0},
@@ -487,20 +511,15 @@
                 if (0 > c1 || grid._c <= c1 || 0 > r1 || grid._r <= r1) {
                     continue;
                 }
-                grid._swp(c0, r0, c1, r1);
+                Tile.swp(grid._tiles[c0][r0], grid._tiles[c1][r1]);
                 var tiles = grid._cnt(c0, r0, c1, r1);
                 if (3 <= tiles[0].length || 3 <= tiles[1].length) {
-                    grid._swp(c0, r0, c1, r1);
+                    Tile.swp(grid._tiles[c0][r0], grid._tiles[c1][r1]);
                     continue;
                 }
                 break;
             }
         }
-    };
-    grid._swp = function(c0, r0, c1, r1) {
-        var type = grid._tiles[c0][r0]._type;
-        grid._tiles[c0][r0]._type = grid._tiles[c1][r1]._type;
-        grid._tiles[c1][r1]._type = type;
     };
     grid._cnt = function(c0, r0, c1, r1) {
         var tiles = [[], []];
@@ -560,6 +579,11 @@
             }
             grid._at.dx = dx;
             grid._at.dy = 0;
+            if (0 < dx) {
+                grid._tiles[grid._at._c + 1][grid._at._r].dx = -dx;
+            } else if (0 > dx) {
+                grid._tiles[grid._at._c - 1][grid._at._r].dx = -dx;
+            }
         } else {
             if (dy > grid._dim) {
                 dy = grid._dim;
@@ -573,14 +597,27 @@
             }
             grid._at.dx = 0;
             grid._at.dy = dy;
+            if (0 < dy) {
+                grid._tiles[grid._at._c][grid._at._r + 1].dy = -dy;
+            } else if (0 > dy) {
+                grid._tiles[grid._at._c][grid._at._r - 1].dy = -dy;
+            }
         }
     };
     grid.onup = function() {
         if (undefined !== grid._at) {
-            grid._at.dx = 0;
-            grid._at.dy = 0;
-            grid._at = undefined;
+            var test = (grid._dim >> 1) - Tile.spd;
+            if (test <= grid._at.dx) {
+                Tile.swp(grid._at, grid._tiles[grid._at._c + 1][grid._at._r]);
+            } else if (-test >= grid._at.dx) {
+                Tile.swp(grid._at, grid._tiles[grid._at._c - 1][grid._at._r]);
+            } else if (test <= grid._at.dy) {
+                Tile.swp(grid._at, grid._tiles[grid._at._c][grid._at._r + 1]);
+            } else if (-test >= grid._at.dy) {
+                Tile.swp(grid._at, grid._tiles[grid._at._c][grid._at._r - 1]);
+            }
         }
+        grid._at = undefined;
     };
     grid.rst = function(fb, x, y, c, r) {
         grid._dim = 64;
