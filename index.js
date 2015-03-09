@@ -622,7 +622,7 @@
         }
     };
     grid.onup = function() {
-        var swapped = undefined;
+        var result = [];
         if (undefined !== grid._at) {
             var test = (Tile.dim >> 1) - Tile.spd;
             var tile = undefined;
@@ -637,11 +637,21 @@
             }
             if (undefined !== tile) {
                 Tile.swp(grid._at, tile);
-                swapped = [grid._at, tile];
+                var tiles = grid.cnt(grid._at);
+                if (3 <= tiles.length) {
+                    result = result.concat(tiles);
+                }
+                tiles = grid.cnt(tile);
+                if (3 <= tiles.length) {
+                    result = result.concat(tiles);
+                }
+                if (0 >= result.length) {
+                    Tile.swp(grid._at, tile);
+                }
             }
             grid._at = undefined;
         }
-        return swapped;
+        return result;
     };
     grid.rst = function(fb, x, y, c, r) {
         grid._fb = fb;
@@ -680,23 +690,15 @@
         } else if (!io.st.up) {
             grid.onmv();
         } else {
-            var swapped = grid.onup();
-            if (undefined === swapped) {
+            var tiles = grid.onup();
+            if (0 >= tiles.length) {
                 return;
             }
-            for (var i = 0; i < swapped.length; i++) {
-                var tiles = grid.cnt(swapped[i]);
-                if (3 > tiles.length) {
-                    continue;
-                }
-                gameScn.ts = tick.ts + Tile.ftd;
-                for (var j = 0; j < tiles.length; j++) {
-                    tiles[j].fts = tick.ts;
-                }
+            for (var i = 0; i < tiles.length; i++) {
+                    tiles[i].fts = tick.ts;
             }
-            if (tick.ts < gameScn.ts) {
-                gameScn._st = 1;
-            }
+            gameScn.ts = tick.ts + Tile.ftd;
+            gameScn._st = 1;
         }
     };
     gameScn.rst = function() {
