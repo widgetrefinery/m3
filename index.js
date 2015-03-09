@@ -357,12 +357,7 @@
             }
         },
         _msOut: function(e) {
-            io.st.x0 = undefined;
-            io.st.y0 = undefined;
-            io.st.x1 = undefined;
-            io.st.y1 = undefined;
-            io.st.dn = false;
-            io.st.up = false;
+            io.st.up = true;
         },
         rst: function(full) {
             if (full || io.st.up) {
@@ -437,94 +432,155 @@
         q.add(fadeAnim, 0, 2000);
     };
 
-    function Tile(x, y, type) {
+    function Tile(x, y, c, r, type) {
         this._x = x;
         this._y = y;
-        this._id = x + ',' + y;
+        this._c = c;
+        this._r = r;
+        this.dx = 0;
+        this.dy = 0;
+        this._id = c + ',' + r;
         this._type = type;
     }
-    Tile.prototype.draw = function(fb, x, y, dim) {
+    Tile.prototype.draw = function(fb, dim) {
         fb.cx.fillStyle = this._type;
-        fb.cx.fillRect(x, y, dim, dim);
+        fb.cx.fillRect(this._x + this.dx, this._y + this.dy, dim, dim);
     };
     Tile.types = ['#f00', '#ff0', '#0f0', '#0ff'];
     Tile.near = [
-        {x: -1, y: 0},
-        {x: 1, y: 0},
-        {x: 0, y: -1},
-        {x: 0, y: 1},
+        {c: -1, r: 0},
+        {c: 1, r: 0},
+        {c: 0, r: -1},
+        {c: 0, r: 1},
     ];
 
     function grid() {
-        for (var x = 0; x < grid._c; x++) {
-            for (var y = 0; y < grid._r; y++) {
-                grid._tiles[x][y].draw(grid._fb, grid._x + x * grid._dim, grid._y + y * grid._dim, grid._dim);
+        for (var c = 0; c < grid._c; c++) {
+            for (var r = 0; r < grid._r; r++) {
+                var tile = grid._tiles[c][r];
+                if (tile === grid._at) {
+                    continue;
+                }
+                tile.draw(grid._fb, grid._dim);
             }
+        }
+        if (undefined !== grid._at) {
+            grid._at.draw(grid._fb, grid._dim);
         }
     }
     grid._roll = function() {
-        for (var x = 0; x < grid._c; x++) {
-            var t = x % Tile.types.length;
-            for (var y = 0; y < grid._r; y++) {
-                grid._tiles[x][y]._type = Tile.types[t];
+        for (var c = 0; c < grid._c; c++) {
+            var t = c % Tile.types.length;
+            for (var r = 0; r < grid._r; r++) {
+                grid._tiles[c][r]._type = Tile.types[t];
                 t = (t + 1) % Tile.types.length;
             }
         }
         for (var i = 0; i < 400; i++) {
-            var x0 = prng(grid._c);
-            var y0 = prng(grid._r);
+            var c0 = prng(grid._c);
+            var r0 = prng(grid._r);
             var n0 = prng(Tile.near.length);
             for (var n = 0; n < Tile.near.length; n++) {
                 var n1 = (n0 + n) % Tile.near.length;
-                var x1 = x0 + Tile.near[n1].x;
-                var y1 = y0 + Tile.near[n1].y;
-                if (0 > x1 || grid._c <= x1 || 0 > y1 || grid._r <= y1) {
+                var c1 = c0 + Tile.near[n1].c;
+                var r1 = r0 + Tile.near[n1].r;
+                if (0 > c1 || grid._c <= c1 || 0 > r1 || grid._r <= r1) {
                     continue;
                 }
-                grid._swp(x0, y0, x1, y1);
-                var tiles = grid._cnt(x0, y0, x1, y1);
+                grid._swp(c0, r0, c1, r1);
+                var tiles = grid._cnt(c0, r0, c1, r1);
                 if (3 <= tiles[0].length || 3 <= tiles[1].length) {
-                    grid._swp(x0, y0, x1, y1);
+                    grid._swp(c0, r0, c1, r1);
                     continue;
                 }
                 break;
             }
         }
     };
-    grid._swp = function(x0, y0, x1, y1) {
-        var type = grid._tiles[x0][y0]._type;
-        grid._tiles[x0][y0]._type = grid._tiles[x1][y1]._type;
-        grid._tiles[x1][y1]._type = type;
+    grid._swp = function(c0, r0, c1, r1) {
+        var type = grid._tiles[c0][r0]._type;
+        grid._tiles[c0][r0]._type = grid._tiles[c1][r1]._type;
+        grid._tiles[c1][r1]._type = type;
     };
-    grid._cnt = function(x0, y0, x1, y1) {
+    grid._cnt = function(c0, r0, c1, r1) {
         var tiles = [[], []];
-        var unproc = [grid._tiles[x0][y0], grid._tiles[x1][y1]];
-        var proc = [grid._tiles[x0][y0]._id, grid._tiles[x1][y1]._id];
-        proc[grid._tiles[x0][y0]._id] = 1;
-        proc[grid._tiles[x1][y1]._id] = 1;
+        var unproc = [grid._tiles[c0][r0], grid._tiles[c1][r1]];
+        var proc = [];
+        proc[grid._tiles[c0][r0]._id] = 1;
+        proc[grid._tiles[c1][r1]._id] = 1;
         while (0 < unproc.length) {
             var tile = unproc.shift();
-            if (tile._type === grid._tiles[x0][y0]._type) {
+            if (tile._type === grid._tiles[c0][r0]._type) {
                 tiles[0].push(tile);
-            } else if (tile._type === grid._tiles[x1][y1]._type) {
+            } else if (tile._type === grid._tiles[c1][r1]._type) {
                 tiles[1].push(tile);
             } else {
                 continue;
             }
             for (var i = 0; i < Tile.near.length; i++) {
-                var x = tile._x + Tile.near[i].x;
-                var y = tile._y + Tile.near[i].y;
-                if (0 > x || grid._c <= x || 0 > y || grid._r <= y) {
+                var c = tile._c + Tile.near[i].c;
+                var r = tile._r + Tile.near[i].r;
+                if (0 > c || grid._c <= c || 0 > r || grid._r <= r) {
                     continue;
                 }
-                if (undefined !== proc[grid._tiles[x][y]._id]) {
+                if (undefined !== proc[grid._tiles[c][r]._id]) {
                     continue;
                 }
-                unproc.push(grid._tiles[x][y]);
-                proc[grid._tiles[x][y]._id] = 1;
+                unproc.push(grid._tiles[c][r]);
+                proc[grid._tiles[c][r]._id] = 1;
             }
         }
         return tiles;
+    };
+    grid.ondn = function() {
+        if (io.st.x0 < grid._x
+            || io.st.x0 >= grid._x + grid._w
+            || io.st.y0 < grid.y
+            || io.st.y0 >= grid._y + grid._h) {
+            return;
+        }
+        var c = ((io.st.x0 - grid._x) / grid._dim) | 0;
+        var r = ((io.st.y0 - grid._y) / grid._dim) | 0;
+        grid._at = grid._tiles[c][r];
+        db.log('grabbed ' + c + ', ' + r);
+    };
+    grid.onmv = function() {
+        var dx = io.st.x1 - io.st.x0;
+        var dy = io.st.y1 - io.st.y0;
+        if (Math.abs(dx) >= Math.abs(dy)) {
+            if (dx > grid._dim) {
+                dx = grid._dim;
+            } else if (dx < -grid._dim) {
+                dx = -grid._dim;
+            }
+            if (0 < dx && grid._at._c + 1 >= grid._c) {
+                dx = 0;
+            } else if (0 > dx && grid._at._c <= 0) {
+                dx = 0;
+            }
+            grid._at.dx = dx;
+            grid._at.dy = 0;
+        } else {
+            if (dy > grid._dim) {
+                dy = grid._dim;
+            } else if (dy < -grid._dim) {
+                dy = -grid._dim;
+            }
+            if (0 < dy && grid._at._r + 1 >= grid._r) {
+                dy = 0;
+            } else if (0 > dy && grid._at._r <= 0) {
+                dy = 0;
+            }
+            grid._at.dx = 0;
+            grid._at.dy = dy;
+        }
+    };
+    grid.onup = function() {
+        if (undefined !== grid._at) {
+            grid._at.dx = 0;
+            grid._at.dy = 0;
+            grid._at = undefined;
+        }
     };
     grid.rst = function(fb, x, y, c, r) {
         grid._dim = 64;
@@ -535,13 +591,14 @@
         grid._r = r;
         grid._w = c * grid._dim;
         grid._h = r * grid._dim;
-        grid._tiles = new Array(c);
-        for (x = 0; x < c; x++) {
-            grid._tiles[x] = new Array(r);
-            for (y = 0; y < r; y++) {
-                grid._tiles[x][y] = new Tile(x, y, Tile.types[0]);
+        grid._tiles = new Array(grid._c);
+        for (c = 0; c < grid._c; c++) {
+            grid._tiles[c] = new Array(grid._r);
+            for (r = 0; r < grid._r; r++) {
+                grid._tiles[c][r] = new Tile(grid._x + c * grid._dim, grid._y + r * grid._dim, c, r, Tile.types[0]);
             }
         }
+        grid._at = undefined;
         grid._roll();
     };
 
@@ -550,6 +607,15 @@
         scn.fb2.clr();
         scn.fb1.cx.fillStyle = '#333';
         scn.fb1.cx.fillRect(0, 0, scn.fb1.cv.width, scn.fb1.cv.height);
+        if (io.st.dn) {
+            grid.ondn();
+        } else if (undefined !== io.st.x0 && undefined !== grid._at) {
+            if (io.st.up) {
+                grid.onup();
+            } else {
+                grid.onmv();
+            }
+        }
         grid();
     }
     gameScn.rst = function() {
