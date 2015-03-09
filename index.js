@@ -520,7 +520,7 @@
                 t = (t + 1) % Tile.types.length;
             }
         }
-        for (var i = 0; i < 400; i++) {
+        for (var i = 0; i < 36; i++) {
             var c0 = prng(grid._c);
             var r0 = prng(grid._r);
             var n0 = prng(Tile.near.length);
@@ -534,14 +534,7 @@
                 var t0 = grid._tiles[c0][r0];
                 var t1 = grid._tiles[c1][r1];
                 Tile.swp(t0, t1);
-                var tiles = grid.cnt([t0, t1]);
-                var revert = false;
-                for (var j = 0; j < Tile.types.length; j++) {
-                    if (undefined !== tiles[Tile.types[j]] && 3 <= tiles[Tile.types[j]].length) {
-                        revert = true;
-                    }
-                }
-                if (revert) {
+                if (3 <= grid.cnt(t0).length || 3 <= grid.cnt(t1).length) {
                     Tile.swp(t0, t1);
                     continue;
                 }
@@ -549,20 +542,17 @@
             }
         }
     };
-    grid.cnt = function(input) {
+    grid.cnt = function(src) {
         var tiles = [];
-        var unproc = input;
+        var unproc = [src];
         var proc = [];
-        for (var i = 0; i < input.length; i++) {
-            tiles[input[i]._type] = [];
-            proc[input[i]._id] = 1;
-        }
+        proc[src._id] = 1;
         while (0 < unproc.length) {
             var tile = unproc.shift();
-            if (undefined === tiles[tile._type]) {
+            if (tile._type !== src._type) {
                 continue;
             }
-            tiles[tile._type].push(tile);
+            tiles.push(tile);
             for (var i = 0; i < Tile.near.length; i++) {
                 var c = tile._c + Tile.near[i].c;
                 var r = tile._r + Tile.near[i].r;
@@ -694,15 +684,14 @@
             if (undefined === swapped) {
                 return;
             }
-            var tiles = grid.cnt(swapped);
-            for (var i = 0; i < Tile.types.length; i++) {
-                var type = Tile.types[i];
-                if (undefined === tiles[type] || 3 > tiles[type].length) {
+            for (var i = 0; i < swapped.length; i++) {
+                var tiles = grid.cnt(swapped[i]);
+                if (3 > tiles.length) {
                     continue;
                 }
                 gameScn.ts = tick.ts + Tile.ftd;
-                for (var j = 0; j < tiles[type].length; j++) {
-                    tiles[type][j].fts = tick.ts;
+                for (var j = 0; j < tiles.length; j++) {
+                    tiles[j].fts = tick.ts;
                 }
             }
             if (tick.ts < gameScn.ts) {
