@@ -606,6 +606,7 @@
                 }
             }
         }
+        return idx;
     };
     grid.ondn = function() {
         if (io.st.x0 < grid._x
@@ -720,8 +721,23 @@
             gameScn.io();
         } else if (1 === gameScn._st) {
             if (gameScn._fTiles[0].fts + Tile.ftd <= tick.ts) {
-                grid.replace(gameScn._fTiles);
+                gameScn._chk = grid.replace(gameScn._fTiles);
                 gameScn._st = 2;
+            }
+        } else if (2 === gameScn._st) {
+            var done = true;
+            for (var c = 0; c < grid._c; c++) {
+                if (undefined === gameScn._chk[c]) {
+                    continue;
+                }
+                var r = gameScn._chk[c].max;
+                if (0 !== grid._tiles[c][r].dy) {
+                    done = false;
+                    break;
+                }
+            }
+            if (done) {
+                gameScn._st = 0;
             }
         }
         grid();
