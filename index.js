@@ -437,16 +437,126 @@
         q.add(fadeAnim, 0, 2000);
     };
 
+    function Tile(x, y, type) {
+        this._x = x;
+        this._y = y;
+        this._id = x + ',' + y;
+        this._type = type;
+    }
+    Tile.prototype.draw = function(fb, x, y, dim) {
+        fb.cx.fillStyle = this._type;
+        fb.cx.fillRect(x, y, dim, dim);
+    };
+    Tile.types = ['#f00', '#ff0', '#0f0', '#0ff'];
+    Tile.near = [
+        {x: -1, y: 0},
+        {x: 1, y: 0},
+        {x: 0, y: -1},
+        {x: 0, y: 1},
+    ];
+
+    function grid() {
+        for (var x = 0; x < grid._c; x++) {
+            for (var y = 0; y < grid._r; y++) {
+                grid._tiles[x][y].draw(grid._fb, grid._x + x * grid._dim, grid._y + y * grid._dim, grid._dim);
+            }
+        }
+    }
+    grid._roll = function() {
+        for (var x = 0; x < grid._c; x++) {
+            var t = x % Tile.types.length;
+            for (var y = 0; y < grid._r; y++) {
+                grid._tiles[x][y]._type = Tile.types[t];
+                t = (t + 1) % Tile.types.length;
+            }
+        }
+        for (var i = 0; i < 400; i++) {
+            var x0 = prng(grid._c);
+            var y0 = prng(grid._r);
+            var n0 = prng(Tile.near.length);
+            for (var n = 0; n < Tile.near.length; n++) {
+                var n1 = (n0 + n) % Tile.near.length;
+                var x1 = x0 + Tile.near[n1].x;
+                var y1 = y0 + Tile.near[n1].y;
+                if (0 > x1 || grid._c <= x1 || 0 > y1 || grid._r <= y1) {
+                    continue;
+                }
+                grid._swp(x0, y0, x1, y1);
+                var tiles = grid._cnt(x0, y0, x1, y1);
+                if (3 <= tiles[0].length || 3 <= tiles[1].length) {
+                    grid._swp(x0, y0, x1, y1);
+                    continue;
+                }
+                break;
+            }
+        }
+    };
+    grid._swp = function(x0, y0, x1, y1) {
+        var type = grid._tiles[x0][y0]._type;
+        grid._tiles[x0][y0]._type = grid._tiles[x1][y1]._type;
+        grid._tiles[x1][y1]._type = type;
+    };
+    grid._cnt = function(x0, y0, x1, y1) {
+        var tiles = [[], []];
+        var unproc = [grid._tiles[x0][y0], grid._tiles[x1][y1]];
+        var proc = [grid._tiles[x0][y0]._id, grid._tiles[x1][y1]._id];
+        proc[grid._tiles[x0][y0]._id] = 1;
+        proc[grid._tiles[x1][y1]._id] = 1;
+        while (0 < unproc.length) {
+            var tile = unproc.shift();
+            if (tile._type === grid._tiles[x0][y0]._type) {
+                tiles[0].push(tile);
+            } else if (tile._type === grid._tiles[x1][y1]._type) {
+                tiles[1].push(tile);
+            } else {
+                continue;
+            }
+            for (var i = 0; i < Tile.near.length; i++) {
+                var x = tile._x + Tile.near[i].x;
+                var y = tile._y + Tile.near[i].y;
+                if (0 > x || grid._c <= x || 0 > y || grid._r <= y) {
+                    continue;
+                }
+                if (undefined !== proc[grid._tiles[x][y]._id]) {
+                    continue;
+                }
+                unproc.push(grid._tiles[x][y]);
+                proc[grid._tiles[x][y]._id] = 1;
+            }
+        }
+        return tiles;
+    };
+    grid.rst = function(fb, x, y, c, r) {
+        grid._dim = 64;
+        grid._fb = fb;
+        grid._x = x;
+        grid._y = y;
+        grid._c = c;
+        grid._r = r;
+        grid._w = c * grid._dim;
+        grid._h = r * grid._dim;
+        grid._tiles = new Array(c);
+        for (x = 0; x < c; x++) {
+            grid._tiles[x] = new Array(r);
+            for (y = 0; y < r; y++) {
+                grid._tiles[x][y] = new Tile(x, y, Tile.types[0]);
+            }
+        }
+        grid._roll();
+    };
+
     function gameScn() {
         scn.fb1.clr();
         scn.fb2.clr();
         scn.fb1.cx.fillStyle = '#333';
         scn.fb1.cx.fillRect(0, 0, scn.fb1.cv.width, scn.fb1.cv.height);
+        grid();
     }
     gameScn.rst = function() {
         q.rst();
         FB.rel(true);
         FB.bg(true);
+        grid.rst(scn.fb1, 10, 10, 8, 6);
     };
 
     window.document.addEventListener('DOMContentLoaded', function() {
