@@ -526,10 +526,22 @@
         for (var c = 0; c < grid._c; c++) {
             var t = c % Tile.types.length;
             for (var r = 0; r < grid._r; r++) {
-                grid._tiles[c][r]._type = Tile.types[t];
+                grid._tiles[c][r].set(Tile.types[t], 0);
                 t = (t + 1) % Tile.types.length;
             }
         }
+        grid._rnd();
+        while (!grid.hasMove()) {
+            db.log('[roll] no moves, randomize some more');
+            grid._rnd();
+        }
+        for (var c = 0; c < grid._c; c++) {
+            for (var r = 0; r < grid._r; r++) {
+                grid._tiles[c][r].dy = -grid._h;
+            }
+        }
+    };
+    grid._rnd = function() {
         for (var i = 0; i < 36; i++) {
             var c0 = prng(grid._c);
             var r0 = prng(grid._r);
@@ -741,10 +753,6 @@
         }
         grid._at = undefined;
         grid.roll();
-        while (!grid.hasMove()) {
-            db.log('[init] no moves, re-rolling');
-            grid.roll();
-        }
     };
 
     function gameScn() {
@@ -753,21 +761,21 @@
         scn.fb1.cx.fillStyle = '#333';
         scn.fb1.cx.fillRect(0, 0, scn.fb1.cv.width, scn.fb1.cv.height);
         if (0 === gameScn._st) {
-            gameScn.io();
+            if (0 === grid._tiles[0][0].dy) {
+                gameScn._st = 1;
+            }
         } else if (1 === gameScn._st) {
+            gameScn.io();
+        } else if (2 === gameScn._st) {
             if (gameScn._fTiles[0].fts + Tile.ftd <= tick.ts) {
                 gameScn._chk = grid.replace(gameScn._fTiles);
-                gameScn._st = 2;
+                gameScn._st = 3;
             }
-        } else if (2 === gameScn._st) {
-            gameScn.wait();
         } else if (3 === gameScn._st) {
+            gameScn.wait();
+        } else if (4 === gameScn._st) {
             if (io.st.up) {
                 grid.roll();
-                while (!grid.hasMove()) {
-                    db.log('[gameScn] no moves, re-rolling')
-                    grid.roll();
-                }
                 gameScn._st = 0;
             }
         }
@@ -789,7 +797,7 @@
                 tiles[i].fts = tick.ts;
             }
             gameScn._fTiles = tiles;
-            gameScn._st = 1;
+            gameScn._st = 2;
         }
     };
     gameScn.wait = function() {
@@ -818,12 +826,12 @@
                 chain[i].fts = tick.ts;
             }
             gameScn._fTiles = chain;
-            gameScn._st = 1;
+            gameScn._st = 2;
         } else if (grid.hasMove()) {
-            gameScn._st = 0;
+            gameScn._st = 1;
         } else {
             db.log('no more moves!');
-            gameScn._st = 3;
+            gameScn._st = 4;
         }
     };
     gameScn.rst = function() {
