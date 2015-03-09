@@ -442,9 +442,26 @@
         this._id = c + ',' + r;
         this._type = type;
     }
-    Tile.prototype.draw = function(fb, dim) {
+    Tile.prototype.draw = function(fb) {
+        fb.cx.save();
         fb.cx.fillStyle = this._type;
-        fb.cx.fillRect(this._x + this.dx, this._y + this.dy, dim, dim);
+        var x = this._x + this.dx;
+        var y = this._y + this.dy;
+        var dim = Tile.dim;
+        if (undefined !== this.fts) {
+            var dt = (tick.ts - this.fts) / Tile.ftd;
+            if (1 < dt) {
+                dt = 1;
+            }
+            fb.cx.globalAlpha = 1 - dt;
+            var i = ((Tile.fDim - Tile.dim) * dt) | 0;
+            var j = i >> 1;
+            x -= j;
+            y -= j;
+            dim += i;
+        }
+        fb.cx.fillRect(x, y, dim, dim);
+        fb.cx.restore();
         if (Tile.spd < this.dx) {
             this.dx -= Tile.spd;
         } else if (-Tile.spd > this.dx) {
@@ -469,6 +486,9 @@
         t1.dx = 0;
         t1.dy = 0;
     }
+    Tile.dim = 64;
+    Tile.fDim = (Tile.dim * 1.25) | 0;
+    Tile.ftd = 500;
     Tile.spd = 10;
     Tile.types = ['#f00', '#ff0', '#0f0', '#0ff'];
     Tile.near = [
@@ -485,11 +505,11 @@
                 if (tile === grid._at) {
                     continue;
                 }
-                tile.draw(grid._fb, grid._dim);
+                tile.draw(grid._fb);
             }
         }
         if (undefined !== grid._at) {
-            grid._at.draw(grid._fb, grid._dim);
+            grid._at.draw(grid._fb);
         }
     }
     grid._roll = function() {
@@ -511,31 +531,38 @@
                 if (0 > c1 || grid._c <= c1 || 0 > r1 || grid._r <= r1) {
                     continue;
                 }
-                Tile.swp(grid._tiles[c0][r0], grid._tiles[c1][r1]);
-                var tiles = grid._cnt(c0, r0, c1, r1);
-                if (3 <= tiles[0].length || 3 <= tiles[1].length) {
-                    Tile.swp(grid._tiles[c0][r0], grid._tiles[c1][r1]);
+                var t0 = grid._tiles[c0][r0];
+                var t1 = grid._tiles[c1][r1];
+                Tile.swp(t0, t1);
+                var tiles = grid.cnt([t0, t1]);
+                var revert = false;
+                for (var j = 0; j < Tile.types.length; j++) {
+                    if (undefined !== tiles[Tile.types[j]] && 3 <= tiles[Tile.types[j]].length) {
+                        revert = true;
+                    }
+                }
+                if (revert) {
+                    Tile.swp(t0, t1);
                     continue;
                 }
                 break;
             }
         }
     };
-    grid._cnt = function(c0, r0, c1, r1) {
-        var tiles = [[], []];
-        var unproc = [grid._tiles[c0][r0], grid._tiles[c1][r1]];
+    grid.cnt = function(input) {
+        var tiles = [];
+        var unproc = input;
         var proc = [];
-        proc[grid._tiles[c0][r0]._id] = 1;
-        proc[grid._tiles[c1][r1]._id] = 1;
+        for (var i = 0; i < input.length; i++) {
+            tiles[input[i]._type] = [];
+            proc[input[i]._id] = 1;
+        }
         while (0 < unproc.length) {
             var tile = unproc.shift();
-            if (tile._type === grid._tiles[c0][r0]._type) {
-                tiles[0].push(tile);
-            } else if (tile._type === grid._tiles[c1][r1]._type) {
-                tiles[1].push(tile);
-            } else {
+            if (undefined === tiles[tile._type]) {
                 continue;
             }
+            tiles[tile._type].push(tile);
             for (var i = 0; i < Tile.near.length; i++) {
                 var c = tile._c + Tile.near[i].c;
                 var r = tile._r + Tile.near[i].r;
@@ -558,8 +585,8 @@
             || io.st.y0 >= grid._y + grid._h) {
             return;
         }
-        var c = ((io.st.x0 - grid._x) / grid._dim) | 0;
-        var r = ((io.st.y0 - grid._y) / grid._dim) | 0;
+        var c = ((io.st.x0 - grid._x) / Tile.dim) | 0;
+        var r = ((io.st.y0 - grid._y) / Tile.dim) | 0;
         grid._at = grid._tiles[c][r];
         db.log('grabbed ' + c + ', ' + r);
     };
@@ -567,10 +594,10 @@
         var dx = io.st.x1 - io.st.x0;
         var dy = io.st.y1 - io.st.y0;
         if (Math.abs(dx) >= Math.abs(dy)) {
-            if (dx > grid._dim) {
-                dx = grid._dim;
-            } else if (dx < -grid._dim) {
-                dx = -grid._dim;
+            if (dx > Tile.dim) {
+                dx = Tile.dim;
+            } else if (dx < -Tile.dim) {
+                dx = -Tile.dim;
             }
             if (0 < dx && grid._at._c + 1 >= grid._c) {
                 dx = 0;
@@ -585,10 +612,10 @@
                 grid._tiles[grid._at._c - 1][grid._at._r].dx = -dx;
             }
         } else {
-            if (dy > grid._dim) {
-                dy = grid._dim;
-            } else if (dy < -grid._dim) {
-                dy = -grid._dim;
+            if (dy > Tile.dim) {
+                dy = Tile.dim;
+            } else if (dy < -Tile.dim) {
+                dy = -Tile.dim;
             }
             if (0 < dy && grid._at._r + 1 >= grid._r) {
                 dy = 0;
@@ -605,34 +632,40 @@
         }
     };
     grid.onup = function() {
+        var swapped = undefined;
         if (undefined !== grid._at) {
-            var test = (grid._dim >> 1) - Tile.spd;
+            var test = (Tile.dim >> 1) - Tile.spd;
+            var tile = undefined;
             if (test <= grid._at.dx) {
-                Tile.swp(grid._at, grid._tiles[grid._at._c + 1][grid._at._r]);
+                tile = grid._tiles[grid._at._c + 1][grid._at._r];
             } else if (-test >= grid._at.dx) {
-                Tile.swp(grid._at, grid._tiles[grid._at._c - 1][grid._at._r]);
+                tile = grid._tiles[grid._at._c - 1][grid._at._r];
             } else if (test <= grid._at.dy) {
-                Tile.swp(grid._at, grid._tiles[grid._at._c][grid._at._r + 1]);
+                tile = grid._tiles[grid._at._c][grid._at._r + 1];
             } else if (-test >= grid._at.dy) {
-                Tile.swp(grid._at, grid._tiles[grid._at._c][grid._at._r - 1]);
+                tile = grid._tiles[grid._at._c][grid._at._r - 1];
             }
+            if (undefined !== tile) {
+                Tile.swp(grid._at, tile);
+                swapped = [grid._at, tile];
+            }
+            grid._at = undefined;
         }
-        grid._at = undefined;
+        return swapped;
     };
     grid.rst = function(fb, x, y, c, r) {
-        grid._dim = 64;
         grid._fb = fb;
         grid._x = x;
         grid._y = y;
         grid._c = c;
         grid._r = r;
-        grid._w = c * grid._dim;
-        grid._h = r * grid._dim;
+        grid._w = c * Tile.dim;
+        grid._h = r * Tile.dim;
         grid._tiles = new Array(grid._c);
         for (c = 0; c < grid._c; c++) {
             grid._tiles[c] = new Array(grid._r);
             for (r = 0; r < grid._r; r++) {
-                grid._tiles[c][r] = new Tile(grid._x + c * grid._dim, grid._y + r * grid._dim, c, r, Tile.types[0]);
+                grid._tiles[c][r] = new Tile(grid._x + c * Tile.dim, grid._y + r * Tile.dim, c, r, Tile.types[0]);
             }
         }
         grid._at = undefined;
@@ -644,21 +677,44 @@
         scn.fb2.clr();
         scn.fb1.cx.fillStyle = '#333';
         scn.fb1.cx.fillRect(0, 0, scn.fb1.cv.width, scn.fb1.cv.height);
-        if (io.st.dn) {
-            grid.ondn();
-        } else if (undefined !== io.st.x0 && undefined !== grid._at) {
-            if (io.st.up) {
-                grid.onup();
-            } else {
-                grid.onmv();
-            }
+        if (0 === gameScn._st) {
+            gameScn.io();
         }
         grid();
     }
+    gameScn.io = function() {
+        if (io.st.dn) {
+            grid.ondn();
+        } else if (undefined === io.st.x0 || undefined === grid._at) {
+            return;
+        } else if (!io.st.up) {
+            grid.onmv();
+        } else {
+            var swapped = grid.onup();
+            if (undefined === swapped) {
+                return;
+            }
+            var tiles = grid.cnt(swapped);
+            for (var i = 0; i < Tile.types.length; i++) {
+                var type = Tile.types[i];
+                if (undefined === tiles[type] || 3 > tiles[type].length) {
+                    continue;
+                }
+                gameScn.ts = tick.ts + Tile.ftd;
+                for (var j = 0; j < tiles[type].length; j++) {
+                    tiles[type][j].fts = tick.ts;
+                }
+            }
+            if (tick.ts < gameScn.ts) {
+                gameScn._st = 1;
+            }
+        }
+    };
     gameScn.rst = function() {
         q.rst();
         FB.rel(true);
         FB.bg(true);
+        gameScn._st = 0;
         grid.rst(scn.fb1, 10, 10, 8, 6);
     };
 
