@@ -499,8 +499,8 @@
     Tile.dim = 64;
     Tile.fDim = (Tile.dim * 1.25) | 0;
     Tile.ftd = 500;
-    Tile.spd = Tile.dim / 200;
-    Tile.types = ['#f00', '#ff0', '#0f0', '#0ff'];
+    Tile.spd = Tile.dim / 100;
+    Tile.types = ['#f00', '#0f0', '#00f', '#ff0', '#f0f', '#0ff', '#fff'];
     Tile.near = [
         {c: -1, r: 0},
         {c: 1, r: 0},
