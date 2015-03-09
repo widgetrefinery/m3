@@ -522,7 +522,7 @@
             grid._at.draw(grid._fb);
         }
     }
-    grid._roll = function() {
+    grid.roll = function() {
         for (var c = 0; c < grid._c; c++) {
             var t = c % Tile.types.length;
             for (var r = 0; r < grid._r; r++) {
@@ -607,6 +607,33 @@
             }
         }
         return idx;
+    };
+    grid.hasMove = function() {
+        for (var c = 0; c < grid._c; c++) {
+            for (var r = 0; r < grid._r; r++) {
+                var c1 = c + 1;
+                var r1 = r + 1;
+                if (c1 < grid._c) {
+                    Tile.swp(grid._tiles[c][r], grid._tiles[c1][r]);
+                    var cnt1 = grid.cnt(grid._tiles[c][r]);
+                    var cnt2 = grid.cnt(grid._tiles[c1][r]);
+                    Tile.swp(grid._tiles[c][r], grid._tiles[c1][r]);
+                    if (3 <= cnt1.length || 3 <= cnt2.length) {
+                        return true;
+                    }
+                }
+                if (r1 < grid._r) {
+                    Tile.swp(grid._tiles[c][r], grid._tiles[c][r1]);
+                    cnt1 = grid.cnt(grid._tiles[c][r]);
+                    cnt2 = grid.cnt(grid._tiles[c][r1]);
+                    Tile.swp(grid._tiles[c][r], grid._tiles[c][r1]);
+                    if (3 <= cnt1.length || 3 <= cnt2.length) {
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
     };
     grid.ondn = function() {
         if (io.st.x0 < grid._x
@@ -709,7 +736,11 @@
             }
         }
         grid._at = undefined;
-        grid._roll();
+        grid.roll();
+        while (!grid.hasMove()) {
+            db.log('[init] no moves, re-rolling');
+            grid.roll();
+        }
     };
 
     function gameScn() {
@@ -726,6 +757,15 @@
             }
         } else if (2 === gameScn._st) {
             gameScn.wait();
+        } else if (3 === gameScn._st) {
+            if (io.st.up) {
+                grid.roll();
+                while (!grid.hasMove()) {
+                    db.log('[gameScn] no moves, re-rolling')
+                    grid.roll();
+                }
+                gameScn._st = 0;
+            }
         }
         grid();
     }
@@ -776,8 +816,11 @@
             }
             gameScn._fTiles = chain;
             gameScn._st = 1;
-        } else {
+        } else if (grid.hasMove()) {
             gameScn._st = 0;
+        } else {
+            db.log('no more moves!');
+            gameScn._st = 3;
         }
     };
     gameScn.rst = function() {
