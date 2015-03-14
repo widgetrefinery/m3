@@ -131,13 +131,13 @@
                 tile: {
                     bg0: {x:   0, y:   0, w: 512, h:  96},
                     bg1: {x: 256, y:  96, w: 256, h: 144},
-                    bl0: {x:   0, y: 322, w:  62, h:  62},
-                    bl1: {x:  62, y: 322, w:  62, h:  62},
-                    bl2: {x: 124, y: 322, w:  62, h:  62},
-                    bl3: {x: 186, y: 322, w:  62, h:  62},
-                    bl4: {x: 248, y: 322, w:  62, h:  62},
-                    bl5: {x: 310, y: 322, w:  62, h:  62},
-                    bl6: {x: 372, y: 322, w:  62, h:  62},
+                    bl0: {x:   0, y: 322, w:  62, h:  62, bg: '#f0f'},
+                    bl1: {x:  62, y: 322, w:  62, h:  62, bg: '#f00'},
+                    bl2: {x: 124, y: 322, w:  62, h:  62, bg: '#ff0'},
+                    bl3: {x: 186, y: 322, w:  62, h:  62, bg: '#0f0'},
+                    bl4: {x: 248, y: 322, w:  62, h:  62, bg: '#0ff'},
+                    bl5: {x: 310, y: 322, w:  62, h:  62, bg: '#00f'},
+                    bl6: {x: 372, y: 322, w:  62, h:  62, bg: '#fff'},
                     brY: {x: 256, y: 240, w: 114, h:   6},
                     brR: {x: 256, y: 246, w: 114, h:   6},
                     pl0: {x:   0, y: 136, w:  48, h:  88},
@@ -250,6 +250,10 @@
                 scn.fb1.cv.style.display = 'none' === scn.fb1.cv.style.display ? 'block' : 'none';
             } else if (io.kb[2] === io.st.kb) {
                 scn.fb2.cv.style.display = 'none' === scn.fb2.cv.style.display ? 'block' : 'none';
+            } else if (io.kb[3] === io.st.kb) {
+                scn.fb3.cv.style.display = 'none' === scn.fb3.cv.style.display ? 'block' : 'none';
+            } else if (io.kb[4] === io.st.kb) {
+                scn.fb4.cv.style.display = 'none' === scn.fb4.cv.style.display ? 'block' : 'none';
             } else if (io.kb[9] === io.st.kb) {
                 db._con = (db._con + 2) % 3;
             } else if (io.kb[0] === io.st.kb) {
@@ -406,7 +410,7 @@
         this.cv.height = FB.h;
         this.cx = this.cv.getContext('2d');
         FB._lst.push(this);
-        this._dcv = db.cv(256, 256);
+        this._dcv = db.cv(320, 240);
         if (this._dcv) {
             this._dcx = this._dcv.getContext('2d');
         }
@@ -494,8 +498,8 @@
     FB._cv.style.zIndex = 9999;
     FB._cx = FB._cv.getContext('2d');
     FB._rel = false;
-    FB.w = 640;
-    FB.h = 480;
+    FB.w = 512;
+    FB.h = 384;
     FB.sx = 1;
     FB.sy = 1;
     window.addEventListener('resize', FB.resize);
@@ -514,6 +518,8 @@
             0: 48,
             1: 49,
             2: 50,
+            3: 51,
+            4: 52,
             9: 57,
             up: 38,
             down: 40,
@@ -578,13 +584,15 @@
         tick();
         scn.run();
         q();
-        db.con(scn.fb2);
+        db.con(scn.fb4);
         FB.flush();
         io.rst(false);
         requestAnimationFrame(scn);
     }
     scn.fb1 = new FB();
     scn.fb2 = new FB();
+    scn.fb3 = new FB();
+    scn.fb4 = new FB();
 
     function fadeAnim(dt, pct) {
         var a = pct;
@@ -636,7 +644,7 @@
     }
     Tile.prototype.draw = function(fb) {
         fb.cx.save();
-        fb.cx.fillStyle = this._type;
+        fb.cx.fillStyle = this._type.bg;
         var x = this._x + this.dx;
         var y = this._y + this.dy;
         var dim = Tile.dim;
@@ -653,6 +661,11 @@
             dim += i;
         }
         fb.cx.fillRect(x, y, dim, dim);
+        fb.cx.drawImage(
+            sprite.sheet.main.img,
+            this._type.x, this._type.y, this._type.w, this._type.h,
+            x, y, this._type.w, this._type.h
+        );
         fb.cx.restore();
         var spd = (Tile.spd * tick.dt) | 0;
         if (1 > spd) {
@@ -688,11 +701,19 @@
         t1.dx = 0;
         t1.dy = 0;
     }
-    Tile.dim = 64;
+    Tile.dim = 54;
     Tile.fDim = (Tile.dim * 1.25) | 0;
     Tile.ftd = 500;
     Tile.spd = Tile.dim / 100;
-    Tile.types = ['#f00', '#0f0', '#00f', '#ff0', '#f0f', '#0ff', '#fff'];
+    Tile.types = [
+        sprite.sheet.main.tile.bl0,
+        sprite.sheet.main.tile.bl1,
+        sprite.sheet.main.tile.bl2,
+        sprite.sheet.main.tile.bl3,
+        sprite.sheet.main.tile.bl4,
+        sprite.sheet.main.tile.bl5,
+        sprite.sheet.main.tile.bl6
+    ];
     Tile.near = [
         {c: -1, r: 0},
         {c: 1, r: 0},
@@ -948,10 +969,8 @@
     };
 
     function gameScn() {
-        scn.fb1.clr();
         scn.fb2.clr();
-        scn.fb1.cx.fillStyle = '#333';
-        scn.fb1.cx.fillRect(0, 0, scn.fb1.cv.width, scn.fb1.cv.height);
+        scn.fb4.clr();
         if (0 === gameScn._st) {
             if (0 === grid._tiles[0][0].dy) {
                 gameScn._st = 1;
@@ -1030,8 +1049,27 @@
         q.rst();
         FB.rel(true);
         FB.bg(true);
+        scn.fb1.cx.drawImage(
+            sprite.sheet.main.img,
+            sprite.sheet.main.tile.bg0.x, sprite.sheet.main.tile.bg0.y, sprite.sheet.main.tile.bg0.w, sprite.sheet.main.tile.bg0.h,
+            0, 0, sprite.sheet.main.tile.bg0.w, sprite.sheet.main.tile.bg0.h
+        );
+        scn.fb3.cx.drawImage(
+            sprite.sheet.main.img,
+            sprite.sheet.main.tile.bg1.x, sprite.sheet.main.tile.bg1.y, sprite.sheet.main.tile.bg1.w, sprite.sheet.main.tile.bg1.h,
+            0, sprite.sheet.main.tile.bg0.h, sprite.sheet.main.tile.bg1.w << 1, sprite.sheet.main.tile.bg1.h << 1
+        );
+        sprite.box(
+            scn.fb3.cx,
+            0,
+            sprite.sheet.main.tile.bg0.h,
+            sprite.sheet.main.tile.bg1.w << 1,
+            sprite.sheet.main.tile.bg1.h << 1,
+            sprite.sheet.main,
+            sprite.sheet.main.tile.wn
+        );
         gameScn._st = 0;
-        grid.rst(scn.fb1, 10, 10, 8, 6);
+        grid.rst(scn.fb4, 13, sprite.sheet.main.tile.bg0.h + 9, 9, 5);
     };
 
     window.document.addEventListener('DOMContentLoaded', function() {
