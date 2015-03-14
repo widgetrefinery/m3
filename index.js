@@ -642,7 +642,7 @@
         this._id = c + ',' + r;
         this._type = type;
     }
-    Tile.prototype.draw = function(fb) {
+    Tile.prototype.upd = function(fb) {
         fb.cx.save();
         fb.cx.fillStyle = this._type.bg;
         var x = this._x + this.dx;
@@ -660,35 +660,37 @@
             y -= j;
             dim += i;
         }
-        fb.cx.fillRect(x, y, dim, dim);
+        if (db.val) {
+            fb.cx.fillRect(x, y, dim, dim);
+        }
         fb.cx.drawImage(
             sprite.sheet.main.img,
             this._type.x, this._type.y, this._type.w, this._type.h,
-            x, y, this._type.w, this._type.h
+            x + 1, y + 1, dim - 2, dim - 2
         );
         fb.cx.restore();
-        var spd = (Tile.spd * tick.dt) | 0;
-        if (1 > spd) {
-            spd = 1;
+        this.spd = (Tile.spd * tick.dt) | 0;
+        if (1 > this.spd) {
+            this.spd = 1;
         }
-        if (spd < this.dx) {
-            this.dx -= spd;
-        } else if (-spd > this.dx) {
-            this.dx += spd;
+        if (this.spd < this.dx) {
+            this.dx -= this.spd;
+        } else if (-this.spd > this.dx) {
+            this.dx += this.spd;
         } else {
             this.dx = 0;
         }
-        if (spd < this.dy) {
-            this.dy -= spd;
-        } else if (-spd > this.dy) {
-            this.dy += spd;
+        if (this.spd < this.dy) {
+            this.dy -= this.spd;
+        } else if (-this.spd > this.dy) {
+            this.dy += this.spd;
         } else {
             this.dy = 0;
         }
     };
-    Tile.prototype.set = function(type, dy) {
+    Tile.prototype.set = function(type, dx, dy) {
         this._type = type;
-        this.dx = 0;
+        this.dx = dx;
         this.dy = dy;
         this.fts = undefined;
     };
@@ -696,10 +698,6 @@
         var t = t0._type;
         t0._type = t1._type;
         t1._type = t;
-        t0.dx = 0;
-        t0.dy = 0;
-        t1.dx = 0;
-        t1.dy = 0;
     }
     Tile.dim = 54;
     Tile.fDim = (Tile.dim * 1.25) | 0;
@@ -728,18 +726,18 @@
                 if (tile === grid._at) {
                     continue;
                 }
-                tile.draw(grid._fb);
+                tile.upd(grid._fb);
             }
         }
         if (undefined !== grid._at) {
-            grid._at.draw(grid._fb);
+            grid._at.upd(grid._fb);
         }
     }
     grid.roll = function() {
         for (var c = 0; c < grid._c; c++) {
             var t = c % Tile.types.length;
             for (var r = 0; r < grid._r; r++) {
-                grid._tiles[c][r].set(Tile.types[t], 0);
+                grid._tiles[c][r].set(Tile.types[t], 0, 0);
                 t = (t + 1) % Tile.types.length;
             }
         }
@@ -748,9 +746,9 @@
             db.log('[roll] no moves, randomize some more');
             grid._rnd();
         }
-        for (var c = 0; c < grid._c; c++) {
-            for (var r = 0; r < grid._r; r++) {
-                grid._tiles[c][r].dy = -grid._h;
+        for (var r = 0; r < grid._r; r++) {
+            for (var c = 0; c < grid._c; c++) {
+                grid._tiles[c][r].dx = -grid._w - (r + grid._c - c) * 16;
             }
         }
     };
@@ -809,29 +807,29 @@
             var tile = tiles[i];
             var c = tile._c;
             var r = tile._r;
-            if (undefined === idx[c]) {
-                idx[c] = r;
+            if (undefined === idx[r]) {
+                idx[r] = c;
             } else {
-                idx[c] = Math.max(idx[c], r);
+                idx[r] = Math.max(idx[r], c);
             }
         }
-        for (c = 0; c < grid._c; c++) {
-            if (undefined === idx[c]) {
+        for (r = 0; r < grid._r; r++) {
+            if (undefined === idx[r]) {
                 continue;
             }
-            var dr = -1;
-            var dy = Tile.dim * dr;
-            for (r = idx[c]; r >= 0; r--) {
-                var r1 = r + dr;
-                while (0 <= r1 && undefined !== grid._tiles[c][r1].fts) {
-                    dr--;
-                    dy -= Tile.dim;
-                    r1--;
+            var dc = -1;
+            var dx = Tile.dim * dc;
+            for (c = idx[r]; c >= 0; c--) {
+                var c1 = c + dc;
+                while (0 <= c1 && undefined !== grid._tiles[c1][r].fts) {
+                    dc--;
+                    dx -= Tile.dim;
+                    c1--;
                 }
-                if (0 > r1) {
-                    grid._tiles[c][r].set(Tile.types[prng(Tile.types.length)], dy);
+                if (0 > c1) {
+                    grid._tiles[c][r].set(Tile.types[prng(Tile.types.length)], dx, 0);
                 } else {
-                    grid._tiles[c][r].set(grid._tiles[c][r1]._type, dy);
+                    grid._tiles[c][r].set(grid._tiles[c1][r]._type, dx, 0);
                 }
             }
         }
@@ -867,7 +865,7 @@
     grid.ondn = function() {
         if (io.st.x0 < grid._x
             || io.st.x0 >= grid._x + grid._w
-            || io.st.y0 < grid.y
+            || io.st.y0 < grid._y
             || io.st.y0 >= grid._y + grid._h) {
             return;
         }
@@ -885,42 +883,36 @@
             } else if (dx < -Tile.dim) {
                 dx = -Tile.dim;
             }
-            if (0 < dx && grid._at._c + 1 >= grid._c) {
-                dx = 0;
-            } else if (0 > dx && grid._at._c <= 0) {
+            if (0 < dx && grid._at._c + 1 < grid._c) {
+                grid._tiles[grid._at._c + 1][grid._at._r].dx = -dx;
+            } else if (0 > dx && grid._at._c > 0) {
+                grid._tiles[grid._at._c - 1][grid._at._r].dx = -dx;
+            } else {
                 dx = 0;
             }
             grid._at.dx = dx;
             grid._at.dy = 0;
-            if (0 < dx) {
-                grid._tiles[grid._at._c + 1][grid._at._r].dx = -dx;
-            } else if (0 > dx) {
-                grid._tiles[grid._at._c - 1][grid._at._r].dx = -dx;
-            }
         } else {
             if (dy > Tile.dim) {
                 dy = Tile.dim;
             } else if (dy < -Tile.dim) {
                 dy = -Tile.dim;
             }
-            if (0 < dy && grid._at._r + 1 >= grid._r) {
-                dy = 0;
-            } else if (0 > dy && grid._at._r <= 0) {
+            if (0 < dy && grid._at._r + 1 < grid._r) {
+                grid._tiles[grid._at._c][grid._at._r + 1].dy = -dy;
+            } else if (0 > dy && grid._at._r > 0) {
+                grid._tiles[grid._at._c][grid._at._r - 1].dy = -dy;
+            } else {
                 dy = 0;
             }
             grid._at.dx = 0;
             grid._at.dy = dy;
-            if (0 < dy) {
-                grid._tiles[grid._at._c][grid._at._r + 1].dy = -dy;
-            } else if (0 > dy) {
-                grid._tiles[grid._at._c][grid._at._r - 1].dy = -dy;
-            }
         }
     };
     grid.onup = function() {
         var result = [];
         if (undefined !== grid._at) {
-            var test = (Tile.dim >> 1) - Tile.spd;
+            var test = (Tile.dim >> 1) - grid._at.spd;
             var tile = undefined;
             if (test <= grid._at.dx) {
                 tile = grid._tiles[grid._at._c + 1][grid._at._r];
@@ -943,6 +935,11 @@
                 }
                 if (0 >= result.length) {
                     Tile.swp(grid._at, tile);
+                } else {
+                    grid._at.dx = 0;
+                    grid._at.dy = 0;
+                    tile.dx = 0;
+                    tile.dy = 0;
                 }
             }
             grid._at = undefined;
@@ -972,7 +969,7 @@
         scn.fb2.clr();
         scn.fb4.clr();
         if (0 === gameScn._st) {
-            if (0 === grid._tiles[0][0].dy) {
+            if (0 === grid._tiles[0][grid._r - 1].dx) {
                 gameScn._st = 1;
             }
         } else if (1 === gameScn._st) {
@@ -1012,20 +1009,20 @@
         }
     };
     gameScn.wait = function() {
-        for (var c = 0; c < grid._c; c++) {
-            if (undefined === gameScn._chk[c]) {
+        for (var r = 0; r < grid._r; r++) {
+            if (undefined === gameScn._chk[r]) {
                 continue;
             }
-            if (0 !== grid._tiles[c][0].dy) {
+            if (0 !== grid._tiles[0][r].dx) {
                 return;
             }
         }
         var chain = [];
-        for (c = 0; c < grid._c; c++) {
-            if (undefined === gameScn._chk[c]) {
+        for (r = 0; r < grid._r; r++) {
+            if (undefined === gameScn._chk[r]) {
                 continue;
             }
-            for (r = gameScn._chk[c]; r >= 0; r--) {
+            for (var c = gameScn._chk[r]; c >= 0; c--) {
                 tiles = grid.cnt(grid._tiles[c][r]);
                 if (3 <= tiles.length) {
                     chain = chain.concat(tiles);
