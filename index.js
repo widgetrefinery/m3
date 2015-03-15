@@ -1007,12 +1007,13 @@
             ts: tick.ts
         };
     };
+    hero.maxUnitQueue = 10;
 
     function hero1() {
         hero(hero1);
-        hero1.bar();
+        hero1.hud();
     }
-    hero1.bar = function() {
+    hero1.hud = function() {
         var sheet = sprite.sheet.main;
         var tile = sheet.tile.brY;
         var w1 = (tile.w * hero1.hp / hero1.mhp) | 0;
@@ -1031,21 +1032,31 @@
                 6 + w1, 6, w2, tile.h
             );
         }
+
+        tile = sheet.tile.dl.sw;
+        for (var i = 0; i < hero1.units.queue.length; i++) {
+            hero1.fb2.cx.drawImage(
+                sheet.img,
+                tile.x, tile.y, tile.w, tile.h,
+                4 + i * tile.w, 16, tile.w, tile.h
+            );
+        }
     };
-    hero1.maxUnitQueue = 10;
 
     function hero2() {
         hero(hero2);
-        hero2.bar();
         if (undefined === winner && tick.ts >= hero2.deploy) {
             hero2.sched();
             var cnt = prng(3);
             for (var i = 0; i <= cnt; i++) {
-               hero2.units.queue.push(hero2.unitTypes[prng(hero2.unitTypes.length)]);
+                if (hero.maxUnitQueue > hero2.units.queue.length) {
+                    hero2.units.queue.push(hero2.unitTypes[prng(hero2.unitTypes.length)]);
+                }
             }
         }
+        hero2.hud();
     }
-    hero2.bar = function() {
+    hero2.hud = function() {
         var sheet = sprite.sheet.main;
         var tile = sheet.tile.brY;
         var w1 = (tile.w * hero2.hp / hero2.mhp) | 0;
@@ -1062,6 +1073,15 @@
                 sheet.img,
                 tile.x, tile.y, w2, tile.h,
                 392 + tile.w - w1 - w2, 6, w2, tile.h
+            );
+        }
+
+        tile = sheet.tile.dl.sw;
+        for (var i = 0; i < hero2.units.queue.length; i++) {
+            hero2.fb2.cx.drawImage(
+                sheet.img,
+                tile.x, tile.y, tile.w, tile.h,
+                508 - tile.w - i * tile.w, 16, tile.w, tile.h
             );
         }
     };
@@ -1386,14 +1406,14 @@
                 var tiles = grid.cnt(grid._at);
                 if (3 <= tiles.length) {
                     result = result.concat(tiles);
-                    if (hero1.maxUnitQueue > hero1.units.queue.length) {
+                    if (hero.maxUnitQueue > hero1.units.queue.length) {
                         hero1.units.queue.push(tiles[0]._type.unit);
                     }
                 }
                 tiles = grid.cnt(tile);
                 if (3 <= tiles.length) {
                     result = result.concat(tiles);
-                    if (hero1.maxUnitQueue > hero1.units.queue.length) {
+                    if (hero.maxUnitQueue > hero1.units.queue.length) {
                         hero1.units.queue.push(tiles[0]._type.unit);
                     }
                 }
@@ -1496,7 +1516,7 @@
                 tiles = grid.cnt(grid._tiles[c][r]);
                 if (3 <= tiles.length) {
                     chain = chain.concat(tiles);
-                    if (hero1.maxUnitQueue > hero1.units.queue.length) {
+                    if (hero.maxUnitQueue > hero1.units.queue.length) {
                         hero1.units.queue.push(tiles[0]._type.unit);
                     }
                 }
