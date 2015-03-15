@@ -642,7 +642,7 @@
         this._id = c + ',' + r;
         this._type = type;
     }
-    Tile.prototype.upd = function(fb) {
+    Tile.prototype.upd = function(fb, x0) {
         fb.cx.save();
         fb.cx.fillStyle = this._type.bg;
         var x = this._x + this.dx;
@@ -663,11 +663,22 @@
         if (db.val) {
             fb.cx.fillRect(x, y, dim, dim);
         }
-        fb.cx.drawImage(
-            sprite.sheet.main.img,
-            this._type.x, this._type.y, this._type.w, this._type.h,
-            x + 1, y + 1, dim - 2, dim - 2
-        );
+        if (undefined !== this.fts) {
+            fb.cx.drawImage(
+                sprite.sheet.main.img,
+                this._type.x, this._type.y, this._type.w, this._type.h,
+                x + 1, y + 1, dim - 2, dim - 2
+            );
+        } else {
+            var dx = Math.max(0, x0 - x);
+            if (this._type.w > dx) {
+                fb.cx.drawImage(
+                    sprite.sheet.main.img,
+                    this._type.x + dx, this._type.y, this._type.w - dx, this._type.h,
+                    x + dx + 1, y + 1, this._type.w - dx, this._type.h
+                );
+            }
+        }
         fb.cx.restore();
         this.spd = (Tile.spd * tick.dt) | 0;
         if (1 > this.spd) {
@@ -726,11 +737,11 @@
                 if (tile === grid._at) {
                     continue;
                 }
-                tile.upd(grid._fb);
+                tile.upd(grid._fb, grid._x);
             }
         }
         if (undefined !== grid._at) {
-            grid._at.upd(grid._fb);
+            grid._at.upd(grid._fb, grid._x);
         }
     }
     grid.roll = function() {
