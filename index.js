@@ -671,6 +671,73 @@
         []
     ];
 
+    function Unit(team, fb1, fb2, dx) {
+        this.team = team;
+        this.fb1 = fb1;
+        this.fb2 = fb2;
+        this.dx = dx;
+    }
+    Unit.prototype.upd = function() {
+        if (undefined !== this.enemy) {
+            if (0 >= this.enemy.hp) {
+                this.enemy = undefined;
+            } else {
+                this.atk();
+                return;
+            }
+        }
+
+        var max = this.x + 60 * this.dx;
+        var x0 = Math.min(this.x, max);
+        var x1 = Math.max(this.x, max);
+        var enemies = teams[1 - this.team];
+        for (var i = enemies.length - 1; 0 <= i; i--) {
+            var enemy = enemies[i];
+            if (x0 <= enemy.x && x1 >= enemy.x && 0 < enemy.hp) {
+                this.enemy = enemy;
+                this.atk();
+                return;
+            }
+        }
+
+        this.idle();
+    };
+    Unit.prototype.atk = function() {
+        this.draw();
+    };
+    Unit.prototype.idle = function() {
+        var dt = tick.ts - this.ts;
+        var dx = (dt / 10) | 0;
+        if (0 < dx) {
+            this.x += dx * this.dx;
+            this.ts = tick.ts;
+        }
+        this.draw();
+    };
+    Unit.prototype.draw = function() {
+        this.fb1.cx.save();
+        var y = (this.y - this.tile.h + 8 * Math.sin(Math.PI * (this.x - this.x0) / 64)) | 0;
+        this.fb1.cx.translate(this.x, y);
+        if (0 < this.dx) {
+            this.fb1.cx.scale(-1, 1);
+        }
+        this.fb1.cx.drawImage(
+            sprite.sheet.main.img,
+            this.tile.x, this.tile.y, this.tile.w, this.tile.h,
+            -(this.tile.w >> 1), 0, this.tile.w, this.tile.h
+        );
+        this.fb1.cx.restore();
+    };
+    Unit.prototype.rst = function(tile, x, y, hp) {
+        this.tile = tile;
+        this.x = x;
+        this.y = y;
+        this.x0 = x + prng(128);
+        this.ts = tick.ts;
+        this.hp = hp;
+        this.enemy = undefined;
+    };
+
     function hero(_hero) {
         if (0 >= _hero.chp) {
             hero.set(_hero, 2);
@@ -689,6 +756,8 @@
         } else if (2 === _hero.st) {
             hero.defeated(_hero, dt);
         }
+
+        hero.updUnits(_hero);
     }
     hero.set = function(_hero, st) {
         if (st !== _hero.st) {
@@ -734,7 +803,33 @@
             _hero.fb1.cx.restore();
         }
     };
-    hero.rst = function(_hero, fb1, fb2, tile, x, y) {
+    hero.updUnits = function(_hero) {
+        var units = teams[_hero.team];
+        var i = 1;
+        while (i < units.length) {
+            var unit = units[i];
+            if (0 < unit.hp) {
+                i++;
+            } else {
+                units.splice(i, 1);
+                _hero.units.reserve.push(unit);
+            }
+        }
+
+        if (0 < _hero.units.queue.length && 0 < _hero.units.reserve.length && tick.ts - _hero.units.ts > 500) {
+            var tile = _hero.units.queue.shift();
+            _hero.units.ts = tick.ts;
+            unit = _hero.units.reserve.pop();
+            unit.rst(tile, _hero.x, _hero.y, 50);
+            units.push(unit);
+        }
+
+        for (i = 1; i < units.length; i++) {
+            units[i].upd();
+        }
+    };
+    hero.rst = function(_hero, team, fb1, fb2, tile, x, y, hp, units) {
+        _hero.team = team;
         _hero.fb1 = fb1;
         _hero.fb2 = fb2;
         _hero.tile = tile;
@@ -742,9 +837,14 @@
         _hero.y = y;
         _hero.st = 0;
         _hero.ts = tick.ts;
-        _hero.mhp = 1000;
+        _hero.mhp = hp;
         _hero.chp = _hero.mhp;
         _hero.hp = _hero.mhp;
+        _hero.units = {
+            reserve: units,
+            queue: 0,
+            ts: tick.ts
+        };
     };
 
     function hero1() {
@@ -1247,8 +1347,30 @@
             sprite.sheet.main.tile.wn
         );
         msg.rst(scn.fb2, scn.fb2.cv.width >> 1, ((scn.fb2.cv.height) >> 1) - sprite.sheet.txt.txt.lh);
-        hero.rst(hero1, scn.fb2, scn.fb3, sprite.sheet.main.tile.pl0, 32, sprite.sheet.main.tile.bg0.h);
-        hero.rst(hero2, scn.fb2, scn.fb3, sprite.sheet.main.tile.pl1, scn.fb2.cv.width - 32, sprite.sheet.main.tile.bg0.h);
+        hero.rst(
+            hero1, 0,
+            scn.fb2, scn.fb3, sprite.sheet.main.tile.pl0,
+            32, sprite.sheet.main.tile.bg0.h, 1000,
+            [
+                new Unit(0, scn.fb2, scn.fb3, 1),
+                new Unit(0, scn.fb2, scn.fb3, 1),
+                new Unit(0, scn.fb2, scn.fb3, 1),
+                new Unit(0, scn.fb2, scn.fb3, 1)
+            ]
+        );
+        hero.rst(
+            hero2, 1,
+            scn.fb2, scn.fb3, sprite.sheet.main.tile.pl1,
+            scn.fb2.cv.width - 32, sprite.sheet.main.tile.bg0.h, 1000,
+            [
+                new Unit(1, scn.fb2, scn.fb3, -1),
+                new Unit(1, scn.fb2, scn.fb3, -1),
+                new Unit(1, scn.fb2, scn.fb3, -1),
+                new Unit(1, scn.fb2, scn.fb3, -1)
+            ]
+        );
+        hero1.units.queue = [sprite.sheet.main.tile.un0, sprite.sheet.main.tile.un1];
+        hero2.units.queue = [sprite.sheet.main.tile.un2, sprite.sheet.main.tile.un3];
         grid.rst(scn.fb2, 13, sprite.sheet.main.tile.bg0.h + 9, 9, 5);
         gameScn._st = 0;
     };
