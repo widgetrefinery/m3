@@ -713,7 +713,7 @@
     Tile.dim = 54;
     Tile.fDim = (Tile.dim * 1.25) | 0;
     Tile.ftd = 500;
-    Tile.spd = Tile.dim / 100;
+    Tile.spd = Tile.dim / 1000;
     Tile.types = [
         sprite.sheet.main.tile.bl0,
         sprite.sheet.main.tile.bl1,
@@ -734,14 +734,14 @@
         for (var c = 0; c < grid._c; c++) {
             for (var r = 0; r < grid._r; r++) {
                 var tile = grid._tiles[c][r];
-                if (tile === grid._at) {
+                if (tile === grid._zt) {
                     continue;
                 }
                 tile.upd(grid._fb, grid._x);
             }
         }
-        if (undefined !== grid._at) {
-            grid._at.upd(grid._fb, grid._x);
+        if (undefined !== grid._zt) {
+            grid._zt.upd(grid._fb, grid._x);
         }
     }
     grid.roll = function() {
@@ -883,6 +883,7 @@
         var c = ((io.st.x0 - grid._x) / Tile.dim) | 0;
         var r = ((io.st.y0 - grid._y) / Tile.dim) | 0;
         grid._at = grid._tiles[c][r];
+        grid._zt = grid._at;
         db.log('grabbed ' + c + ', ' + r);
     };
     grid.onmv = function() {
