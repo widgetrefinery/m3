@@ -740,6 +740,10 @@
             this.draw();
             return;
         }
+        if (this.immune) {
+            this.warpIn();
+            return;
+        }
 
         if (undefined !== this.enemy) {
             if (0 >= this.enemy.hp) {
@@ -758,7 +762,7 @@
         var enemies = teams[1 - this.team];
         for (var i = enemies.length - 1; 0 <= i; i--) {
             var enemy = enemies[i];
-            if (x0 <= enemy.x && x1 >= enemy.x && 0 < enemy.hp) {
+            if (x0 <= enemy.x && x1 >= enemy.x && 0 < enemy.hp && !enemy.immune) {
                 this.enemy = enemy;
                 this.ts = tick.ts;
                 this.atk();
@@ -793,14 +797,35 @@
         var dx = (dt / 10) | 0;
         if (0 < dx) {
             this.x += dx * this.dx;
+            this.y = (this.y0 + 8 * Math.sin(Math.PI * (this.x - this.x0) / 64)) | 0;
             this.ts = tick.ts;
         }
         this.draw();
     };
+    Unit.prototype.warpIn = function() {
+        var dt = tick.ts - this.ts;
+        var h = dt / 10;
+        if (h >= this.tile.h) {
+            this.immune = false;
+            this.ts = tick.ts;
+            this.idle();
+        } else {
+            this.fb1.cx.save();
+            this.fb1.cx.translate(this.x, this.y - this.tile.h);
+            if (0 < this.dx) {
+                this.fb1.cx.scale(-1, 1);
+            }
+            this.fb1.cx.drawImage(
+                sprite.sheet.main.img,
+                this.tile.x, this.tile.y, this.tile.w, h,
+                -(this.tile.w >> 1), 0, this.tile.w, h
+            );
+            this.fb1.cx.restore();
+        }
+    };
     Unit.prototype.draw = function() {
         this.fb1.cx.save();
-        var y = (this.y - this.tile.h + 8 * Math.sin(Math.PI * (this.x - this.x0) / 64)) | 0;
-        this.fb1.cx.translate(this.x, y);
+        this.fb1.cx.translate(this.x, this.y - this.tile.h);
         if (0 < this.dx) {
             this.fb1.cx.scale(-1, 1);
         }
@@ -814,11 +839,13 @@
     Unit.prototype.rst = function(tile, x, y, hp) {
         this.tile = tile;
         this.x = x;
-        this.y = y;
         this.x0 = x + prng(128);
+        this.y0 = y;
+        this.y = (this.y0 + 8 * Math.sin(Math.PI * (this.x - this.x0) / 64)) | 0;
         this.ts = tick.ts;
         this.hp = hp;
         this.enemy = undefined;
+        this.immune = true;
     };
     Unit.defeated = function(unit) {
         unit.disarmBullets();
