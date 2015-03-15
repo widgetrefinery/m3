@@ -663,6 +663,132 @@
         msg._y = y;
     };
 
+    function hero(_hero) {
+        if (0 >= _hero.hp) {
+            hero.set(_hero, 2);
+        } else if (_hero.hp > _hero.chp) {
+            _hero.hp = Math.max(_hero.hp - 5, _hero.chp);
+            hero.set(_hero, 1);
+        } else {
+            hero.set(_hero, 0);
+        }
+
+        var dt = tick.ts - _hero.ts;
+        if (0 === _hero.st) {
+            hero.idle(_hero, dt);
+        } else if (1 === _hero.st) {
+            hero.distress(_hero, dt);
+        } else if (2 === _hero.st) {
+            hero.defeated(_hero, dt);
+        }
+    }
+    hero.set = function(_hero, st) {
+        if (st !== _hero.st) {
+            _hero.st = st;
+            _hero.ts = tick.ts;
+        }
+    };
+    hero.idle = function(_hero, dt) {
+        var x = _hero.x - (_hero.tile.w >> 1);
+        x += (4 * Math.sin(Math.PI * dt / 1000)) | 0;
+        var y = _hero.y - _hero.tile.h;
+        y += (2 * Math.sin(Math.PI * dt / 500)) | 0;
+        _hero.fb.cx.drawImage(
+            sprite.sheet.main.img,
+            _hero.tile.x, _hero.tile.y, _hero.tile.w, _hero.tile.h,
+            x, y, _hero.tile.w, _hero.tile.h
+        );
+    };
+    hero.distress = function(_hero, dt) {
+        var amt = Math.sin(Math.PI * dt / 500);
+        var w = _hero.tile.w + ((8 * amt) | 0);
+        var h = _hero.tile.h - ((16 * amt) | 0);
+        _hero.fb.cx.drawImage(
+            sprite.sheet.main.img,
+            _hero.tile.x, _hero.tile.y, _hero.tile.w, _hero.tile.h,
+            _hero.x - (w >> 1), _hero.y - h, w, h
+        );
+    };
+    hero.defeated = function(_hero, dt) {
+        var s = 1 - dt / 2000;
+        var w = (s * _hero.tile.w) | 0;
+        var h = (s * _hero.tile.h) | 0;
+
+        if (2 < w && 2 < h) {
+            _hero.fb.cx.save();
+            _hero.fb.cx.translate(_hero.x, _hero.y - (_hero.tile.h >> 1));
+            _hero.fb.cx.rotate(Math.PI * dt / 500);
+            _hero.fb.cx.drawImage(
+                sprite.sheet.main.img,
+                _hero.tile.x, _hero.tile.y, _hero.tile.w, _hero.tile.h,
+                -(w >> 1), -(h >> 1), w, h
+            );
+            _hero.fb.cx.restore();
+        }
+    };
+    hero.rst = function(_hero, team, fb, tile, x, y) {
+        _hero.team = team;
+        _hero.fb = fb;
+        _hero.tile = tile;
+        _hero.x = x;
+        _hero.y = y;
+        _hero.st = 0;
+        _hero.ts = tick.ts;
+        _hero.mhp = 1000;
+        _hero.chp = _hero.mhp;
+        _hero.hp = _hero.mhp;
+    };
+
+    function hero1() {
+        hero(hero1);
+        hero1.bar();
+    }
+    hero1.bar = function() {
+        var sheet = sprite.sheet.main;
+        var tile = sheet.tile.brY;
+        var w1 = (tile.w * hero1.chp / hero1.mhp) | 0;
+        hero1.fb.cx.drawImage(
+            sheet.img,
+            tile.x, tile.y, w1, tile.h,
+            6, 6, w1, tile.h
+        );
+
+        if (hero1.hp > hero1.chp) {
+            tile = sheet.tile.brR;
+            var w2 = (tile.w * (hero1.hp - hero1.chp) / hero1.mhp) | 0;
+            hero1.fb.cx.drawImage(
+                sheet.img,
+                tile.x, tile.y, w2, tile.h,
+                6 + w1, 6, w2, tile.h
+            );
+        }
+    };
+
+    function hero2() {
+        hero(hero2);
+        hero2.bar();
+    }
+    hero2.bar = function() {
+        var sheet = sprite.sheet.main;
+        var tile = sheet.tile.brY;
+        var w1 = (tile.w * hero2.chp / hero2.mhp) | 0;
+        hero2.fb.cx.drawImage(
+            sheet.img,
+            tile.x, tile.y, w1, tile.h,
+            392 + tile.w - w1, 6, w1, tile.h
+        );
+
+        if (hero2.hp > hero2.chp) {
+            tile = sheet.tile.brR;
+            var w2 = (tile.w * (hero2.hp - hero2.chp) / hero2.mhp) | 0;
+            hero2.fb.cx.drawImage(
+                sheet.img,
+                tile.x, tile.y, w2, tile.h,
+                392 + tile.w - w1 - w2, 6, w2, tile.h
+            );
+        }
+    };
+
     function Tile(x, y, c, r, type) {
         this._x = x;
         this._y = y;
@@ -1029,6 +1155,8 @@
                 gameScn._st = 0;
             }
         }
+        hero1();
+        hero2();
         grid();
     }
     gameScn.io = function() {
@@ -1107,9 +1235,11 @@
             sprite.sheet.main,
             sprite.sheet.main.tile.wn
         );
-        gameScn._st = 0;
         msg.rst(scn.fb2, scn.fb2.cv.width >> 1, ((scn.fb2.cv.height) >> 1) - sprite.sheet.txt.txt.lh);
+        hero.rst(hero1, 1, scn.fb2, sprite.sheet.main.tile.pl0, 32, sprite.sheet.main.tile.bg0.h);
+        hero.rst(hero2, 2, scn.fb2, sprite.sheet.main.tile.pl1, scn.fb2.cv.width - 32, sprite.sheet.main.tile.bg0.h);
         grid.rst(scn.fb2, 13, sprite.sheet.main.tile.bg0.h + 9, 9, 5);
+        gameScn._st = 0;
     };
 
     window.document.addEventListener('DOMContentLoaded', function() {
