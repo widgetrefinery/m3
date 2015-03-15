@@ -670,10 +670,8 @@
         msg._y = y;
     };
 
-    var teams = [
-        [],
-        []
-    ];
+    var winner = undefined;
+    var teams = [];
 
     function Bullet(fb, dx) {
         this.fb = fb;
@@ -691,9 +689,7 @@
                     x - (tile.w >> 1), y - (tile.h >> 1), tile.w, tile.h
                 );
             } else {
-                if (0 >= self.src.hp) {
-                    self.spent = true;
-                } else if (!self.spent) {
+                if (undefined === winner && !self.spent) {
                     self.spent = true;
                     self.tgt.hp -= 20;
                 }
@@ -713,8 +709,7 @@
             }
         };
     }
-    Bullet.prototype.rst = function(src, tgt, x0, y0, x1, y1) {
-        this.src = src;
+    Bullet.prototype.rst = function(tgt, x0, y0, x1, y1) {
         this.tgt = tgt;
         this.x0 = x0;
         this.y0 = y0;
@@ -741,9 +736,15 @@
         };
     }
     Unit.prototype.upd = function() {
+        if (undefined !== winner) {
+            this.draw();
+            return;
+        }
+
         if (undefined !== this.enemy) {
             if (0 >= this.enemy.hp) {
                 this.enemy = undefined;
+                this.disarmBullets();
                 this.ts = tick.ts;
             } else {
                 this.atk();
@@ -767,11 +768,15 @@
 
         this.idle();
     };
+    Unit.prototype.disarmBullets = function() {
+        for (var i = 0; i < this.bullets.reserve.length; i++) {
+            this.bullets.reserve[i].spent = true;
+        }
+    };
     Unit.prototype.atk = function() {
         var bullet = this.bullets.reserve[this.bullets.next];
         if (tick.ts - this.bullets.ts > 200 && q.isDone(bullet.run)) {
             bullet.rst(
-                this,
                 this.enemy,
                 this.x,
                 this.y - (this.tile.h >> 1),
@@ -816,6 +821,7 @@
         this.enemy = undefined;
     };
     Unit.defeated = function(unit) {
+        unit.disarmBullets();
         var fb = unit.fb1;
         var tile = unit.tile;
         var x = unit.x;
@@ -839,16 +845,19 @@
     };
 
     function hero(_hero) {
-        if (0 > _hero.hp) {
+        if (0 >= _hero.hp) {
             _hero.hp = 0;
+            winner = 1 - _hero.team;
         }
         if (_hero.chp > _hero.hp) {
-            _hero.chp = Math.max(_hero.chp - 2, _hero.hp);
-            _hero.ts2 = tick.ts + 100;
+            if (tick.ts >= _hero.ts2) {
+                _hero.chp = Math.max(_hero.chp - 5, _hero.hp);
+                _hero.ts2 = tick.ts + 20;
+            }
         }
         if (0 >= _hero.hp) {
             hero.set(_hero, 2);
-        } else if (tick.ts < _hero.ts2) {
+        } else if (_hero.chp > _hero.hp || tick.ts < _hero.ts2 + 200) {
             hero.set(_hero, 1);
         } else {
             hero.set(_hero, 0);
@@ -980,12 +989,11 @@
             );
         }
     };
-    teams[0].push(hero1);
 
     function hero2() {
         hero(hero2);
         hero2.bar();
-        if (tick.ts >= hero2.deploy) {
+        if (undefined === winner && tick.ts >= hero2.deploy) {
             hero2.sched();
             hero2.units.queue.push(hero2.unitTypes[prng(hero2.unitTypes.length)]);
         }
@@ -1022,7 +1030,6 @@
         sprite.sheet.main.tile.un5,
         sprite.sheet.main.tile.un6,
     ];
-    teams[1].push(hero2);
 
     function Tile(x, y, c, r, type) {
         this._x = x;
@@ -1497,6 +1504,8 @@
         hero2.sched();
         hero1.units.queue = [sprite.sheet.main.tile.un0];
         grid.rst(scn.fb2, 13, sprite.sheet.main.tile.bg0.h + 9, 9, 5);
+        winner = undefined;
+        teams = [[hero1], [hero2]];
         gameScn._st = 0;
     };
 
