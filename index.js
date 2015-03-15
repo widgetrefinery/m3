@@ -695,7 +695,7 @@
                     self.spent = true;
                 } else if (!self.spent) {
                     self.spent = true;
-                    self.tgt.hp -= 10;
+                    self.tgt.hp -= 20;
                 }
                 dt -= 500;
                 var f = (dt * sprite.anim) | 0;
@@ -820,10 +820,14 @@
         var tile = unit.tile;
         var x = unit.x;
         var y = unit.y - (tile.h >> 1);
+        var flip = 0 < unit.dx;
         q.add(function(dt, pct) {
             fb.cx.save();
             fb.cx.globalAlpha = 1 - pct;
             fb.cx.translate(x, (y + tile.h * pct / 2) | 0);
+            if (flip) {
+                fb.cx.scale(-1, 1);
+            }
             fb.cx.rotate(Math.PI * pct / 2);
             fb.cx.drawImage(
                 sprite.sheet.main.img,
@@ -835,10 +839,16 @@
     };
 
     function hero(_hero) {
-        if (0 >= _hero.chp) {
+        if (0 > _hero.hp) {
+            _hero.hp = 0;
+        }
+        if (_hero.chp > _hero.hp) {
+            _hero.chp = Math.max(_hero.chp - 2, _hero.hp);
+            _hero.ts2 = tick.ts + 100;
+        }
+        if (0 >= _hero.hp) {
             hero.set(_hero, 2);
-        } else if (_hero.chp > _hero.hp) {
-            _hero.chp = Math.max(_hero.chp - 5, _hero.hp);
+        } else if (tick.ts < _hero.ts2) {
             hero.set(_hero, 1);
         } else {
             hero.set(_hero, 0);
@@ -934,13 +944,14 @@
         _hero.y = y;
         _hero.st = 0;
         _hero.ts = tick.ts;
+        _hero.ts2 = 0;
         _hero.mhp = hp;
         _hero.chp = _hero.mhp;
         _hero.hp = _hero.mhp;
         _hero.uhp = uhp;
         _hero.units = {
             reserve: units,
-            queue: 0,
+            queue: [],
             ts: tick.ts
         };
     };
@@ -974,6 +985,10 @@
     function hero2() {
         hero(hero2);
         hero2.bar();
+        if (tick.ts >= hero2.deploy) {
+            hero2.sched();
+            hero2.units.queue.push(hero2.unitTypes[prng(hero2.unitTypes.length)]);
+        }
     }
     hero2.bar = function() {
         var sheet = sprite.sheet.main;
@@ -995,6 +1010,18 @@
             );
         }
     };
+    hero2.sched = function() {
+        hero2.deploy = tick.ts + 2000 + prng(2000);
+    };
+    hero2.unitTypes = [
+        sprite.sheet.main.tile.un0,
+        sprite.sheet.main.tile.un1,
+        sprite.sheet.main.tile.un2,
+        sprite.sheet.main.tile.un3,
+        sprite.sheet.main.tile.un4,
+        sprite.sheet.main.tile.un5,
+        sprite.sheet.main.tile.un6,
+    ];
     teams[1].push(hero2);
 
     function Tile(x, y, c, r, type) {
@@ -1467,8 +1494,8 @@
                 new Unit(1, scn.fb2, scn.fb3, -1)
             ]
         );
+        hero2.sched();
         hero1.units.queue = [sprite.sheet.main.tile.un0];
-        hero2.units.queue = [sprite.sheet.main.tile.un1];
         grid.rst(scn.fb2, 13, sprite.sheet.main.tile.bg0.h + 9, 9, 5);
         gameScn._st = 0;
     };
