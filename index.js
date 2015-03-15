@@ -128,6 +128,14 @@
         },
         sheet: {
             main: {
+                anim: {
+                    sm: [
+                        {x:   0, y:  96, w:  32, h:  32},
+                        {x:  32, y:  96, w:  32, h:  32},
+                        {x:  64, y:  96, w:  32, h:  32},
+                        {x:  96, y:  96, w:  32, h:  32},
+                    ]
+                },
                 tile: {
                     bg0: {x:   0, y:   0, w: 512, h:  96},
                     bg1: {x: 256, y:  96, w: 256, h: 144},
@@ -142,10 +150,6 @@
                     brR: {x: 256, y: 246, w: 114, h:   6},
                     pl0: {x:   0, y: 136, w:  48, h:  88},
                     pl1: {x:  62, y: 136, w:  48, h:  88},
-                    sm0: {x:   0, y:  96, w:  32, h:  32},
-                    sm1: {x:  32, y:  96, w:  32, h:  32},
-                    sm2: {x:  64, y:  96, w:  32, h:  32},
-                    sm3: {x:  96, y:  96, w:  32, h:  32},
                     st:  {x: 496, y: 260, w:  14, h:  93},
                     un0: {x:   0, y: 260, w:  62, h:  62},
                     un1: {x:  62, y: 260, w:  62, h:  62},
@@ -671,16 +675,76 @@
         []
     ];
 
+    function Bullet(fb, dx) {
+        this.fb = fb;
+        this.dx = dx;
+        var self = this;
+        this.run = function(dt) {
+            if (500 > dt) {
+                var amt = dt / 500;
+                var x = (self.x0 + (self.x1 - self.x0) * amt) | 0;
+                var y = (self.y0 + (self.y1 - self.y0) * amt) | 0;
+                var tile = sprite.sheet.main.tile.dl.nw;
+                fb.cx.drawImage(
+                    sprite.sheet.main.img,
+                    tile.x, tile.y, tile.w, tile.h,
+                    x - (tile.w >> 1), y - (tile.h >> 1), tile.w, tile.h
+                );
+            } else {
+                if (0 >= self.src.hp) {
+                    self.spent = true;
+                } else if (!self.spent) {
+                    self.spent = true;
+                    self.tgt.hp -= 10;
+                }
+                dt -= 500;
+                var f = (dt * sprite.anim) | 0;
+                var anim = sprite.sheet.main.anim.sm;
+                if (f < anim.length) {
+                    var dy = dt / 50;
+                    fb.cx.drawImage(
+                        sprite.sheet.main.img,
+                        anim[f].x, anim[f].y, anim[f].w, anim[f].h,
+                        self.x1 - (anim[f].w >> 1), self.y1 - (anim[f].h >> 1) - dy, anim[f].w, anim[f].h
+                    );
+                } else {
+                    q.del(self.run);
+                }
+            }
+        };
+    }
+    Bullet.prototype.rst = function(src, tgt, x0, y0, x1, y1) {
+        this.src = src;
+        this.tgt = tgt;
+        this.x0 = x0;
+        this.y0 = y0;
+        this.x1 = x1;
+        this.y1 = y1;
+        this.spent = false;
+        q.add(this.run, 0);
+    };
+
     function Unit(team, fb1, fb2, dx) {
         this.team = team;
         this.fb1 = fb1;
         this.fb2 = fb2;
         this.dx = dx;
+        this.bullets = {
+            reserve: [
+                new Bullet(fb2, dx),
+                new Bullet(fb2, dx),
+                new Bullet(fb2, dx),
+                new Bullet(fb2, dx)
+            ],
+            next: 0,
+            ts: 0
+        };
     }
     Unit.prototype.upd = function() {
         if (undefined !== this.enemy) {
             if (0 >= this.enemy.hp) {
                 this.enemy = undefined;
+                this.ts = tick.ts;
             } else {
                 this.atk();
                 return;
@@ -695,6 +759,7 @@
             var enemy = enemies[i];
             if (x0 <= enemy.x && x1 >= enemy.x && 0 < enemy.hp) {
                 this.enemy = enemy;
+                this.ts = tick.ts;
                 this.atk();
                 return;
             }
@@ -703,6 +768,19 @@
         this.idle();
     };
     Unit.prototype.atk = function() {
+        var bullet = this.bullets.reserve[this.bullets.next];
+        if (tick.ts - this.bullets.ts > 200 && q.isDone(bullet.run)) {
+            bullet.rst(
+                this,
+                this.enemy,
+                this.x,
+                this.y - (this.tile.h >> 1),
+                this.enemy.x - (this.enemy.tile.w >> 2) + prng(this.enemy.tile.w >> 1),
+                (this.enemy.y - (this.enemy.tile.h * 0.75) + prng(this.enemy.tile.h >> 1)) | 0
+            );
+            this.bullets.next = (this.bullets.next + 1) % this.bullets.reserve.length;
+            this.bullets.ts = tick.ts;
+        }
         this.draw();
     };
     Unit.prototype.idle = function() {
@@ -736,6 +814,24 @@
         this.ts = tick.ts;
         this.hp = hp;
         this.enemy = undefined;
+    };
+    Unit.defeated = function(unit) {
+        var fb = unit.fb1;
+        var tile = unit.tile;
+        var x = unit.x;
+        var y = unit.y - (tile.h >> 1);
+        q.add(function(dt, pct) {
+            fb.cx.save();
+            fb.cx.globalAlpha = 1 - pct;
+            fb.cx.translate(x, (y + tile.h * pct / 2) | 0);
+            fb.cx.rotate(Math.PI * pct / 2);
+            fb.cx.drawImage(
+                sprite.sheet.main.img,
+                tile.x, tile.y, tile.w, tile.h,
+                -(tile.w >> 1), -(tile.h >> 1), tile.w, tile.h
+            );
+            fb.cx.restore();
+        }, 0, 1000);
     };
 
     function hero(_hero) {
@@ -811,6 +907,7 @@
             if (0 < unit.hp) {
                 i++;
             } else {
+                Unit.defeated(unit);
                 units.splice(i, 1);
                 _hero.units.reserve.push(unit);
             }
@@ -820,7 +917,7 @@
             var tile = _hero.units.queue.shift();
             _hero.units.ts = tick.ts;
             unit = _hero.units.reserve.pop();
-            unit.rst(tile, _hero.x, _hero.y, 50);
+            unit.rst(tile, _hero.x, _hero.y, _hero.uhp);
             units.push(unit);
         }
 
@@ -828,7 +925,7 @@
             units[i].upd();
         }
     };
-    hero.rst = function(_hero, team, fb1, fb2, tile, x, y, hp, units) {
+    hero.rst = function(_hero, team, fb1, fb2, tile, x, y, hp, uhp, units) {
         _hero.team = team;
         _hero.fb1 = fb1;
         _hero.fb2 = fb2;
@@ -840,6 +937,7 @@
         _hero.mhp = hp;
         _hero.chp = _hero.mhp;
         _hero.hp = _hero.mhp;
+        _hero.uhp = uhp;
         _hero.units = {
             reserve: units,
             queue: 0,
@@ -1350,7 +1448,7 @@
         hero.rst(
             hero1, 0,
             scn.fb2, scn.fb3, sprite.sheet.main.tile.pl0,
-            32, sprite.sheet.main.tile.bg0.h, 1000,
+            32, sprite.sheet.main.tile.bg0.h, 1000, 50,
             [
                 new Unit(0, scn.fb2, scn.fb3, 1),
                 new Unit(0, scn.fb2, scn.fb3, 1),
@@ -1361,7 +1459,7 @@
         hero.rst(
             hero2, 1,
             scn.fb2, scn.fb3, sprite.sheet.main.tile.pl1,
-            scn.fb2.cv.width - 32, sprite.sheet.main.tile.bg0.h, 1000,
+            scn.fb2.cv.width - 32, sprite.sheet.main.tile.bg0.h, 1000, 40,
             [
                 new Unit(1, scn.fb2, scn.fb3, -1),
                 new Unit(1, scn.fb2, scn.fb3, -1),
@@ -1369,8 +1467,8 @@
                 new Unit(1, scn.fb2, scn.fb3, -1)
             ]
         );
-        hero1.units.queue = [sprite.sheet.main.tile.un0, sprite.sheet.main.tile.un1];
-        hero2.units.queue = [sprite.sheet.main.tile.un2, sprite.sheet.main.tile.un3];
+        hero1.units.queue = [sprite.sheet.main.tile.un0];
+        hero2.units.queue = [sprite.sheet.main.tile.un1];
         grid.rst(scn.fb2, 13, sprite.sheet.main.tile.bg0.h + 9, 9, 5);
         gameScn._st = 0;
     };
