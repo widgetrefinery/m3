@@ -250,10 +250,6 @@
                 scn.fb1.cv.style.display = 'none' === scn.fb1.cv.style.display ? 'block' : 'none';
             } else if (io.kb[2] === io.st.kb) {
                 scn.fb2.cv.style.display = 'none' === scn.fb2.cv.style.display ? 'block' : 'none';
-            } else if (io.kb[3] === io.st.kb) {
-                scn.fb3.cv.style.display = 'none' === scn.fb3.cv.style.display ? 'block' : 'none';
-            } else if (io.kb[4] === io.st.kb) {
-                scn.fb4.cv.style.display = 'none' === scn.fb4.cv.style.display ? 'block' : 'none';
             } else if (io.kb[9] === io.st.kb) {
                 db._con = (db._con + 2) % 3;
             } else if (io.kb[0] === io.st.kb) {
@@ -584,15 +580,13 @@
         tick();
         scn.run();
         q();
-        db.con(scn.fb4);
+        db.con(scn.fb2);
         FB.flush();
         io.rst(false);
         requestAnimationFrame(scn);
     }
     scn.fb1 = new FB();
     scn.fb2 = new FB();
-    scn.fb3 = new FB();
-    scn.fb4 = new FB();
 
     function fadeAnim(dt, pct) {
         var a = pct;
@@ -630,6 +624,43 @@
         FB.bg(false);
         fadeAnim.rst(scn.fb2, false, false);
         q.add(fadeAnim, 0, 2000);
+    };
+
+    function msg(dt) {
+        var bgw = msg._txt.length * sprite.sheet.txt.txt.sp;
+        var bgt = sprite.sheet.main.tile.dl;
+        var txt = msg._txt;
+        if (500 > dt) {
+            bgw *= dt / 500;
+            txt = '';
+        } else {
+            var len = ((dt - 500) / 50) | 0;
+            if (txt.length > len) {
+                txt = txt.substring(0, len);
+            } else if (io.st.dn) {
+                q.del(msg);
+            }
+        }
+        bgw = (bgw + bgt.nw.w + bgt.ne.w) | 0;
+        sprite.box(
+            msg._fb.cx,
+            msg._x - (bgw >> 1), msg._y, bgw, bgt.nw.h + bgt.cw.h + bgt.sw.h,
+            sprite.sheet.main, bgt
+        );
+        sprite.txtL(
+            msg._fb.cx,
+            msg._x - ((msg._txt.length * sprite.sheet.txt.txt.sp) >> 1), msg._y + 16,
+            sprite.sheet.txt, txt
+        );
+    }
+    msg.show = function(txt, ts) {
+        msg._txt = txt;
+        q.add(msg, ts, 0);
+    };
+    msg.rst = function(fb, x, y) {
+        msg._fb = fb;
+        msg._x = x;
+        msg._y = y;
     };
 
     function Tile(x, y, c, r, type) {
@@ -713,7 +744,7 @@
     Tile.dim = 54;
     Tile.fDim = (Tile.dim * 1.25) | 0;
     Tile.ftd = 500;
-    Tile.spd = Tile.dim / 1000;
+    Tile.spd = Tile.dim / 100;
     Tile.types = [
         sprite.sheet.main.tile.bl0,
         sprite.sheet.main.tile.bl1,
@@ -979,7 +1010,6 @@
 
     function gameScn() {
         scn.fb2.clr();
-        scn.fb4.clr();
         if (0 === gameScn._st) {
             if (0 === grid._tiles[0][grid._r - 1].dx) {
                 gameScn._st = 1;
@@ -994,7 +1024,7 @@
         } else if (3 === gameScn._st) {
             gameScn.wait();
         } else if (4 === gameScn._st) {
-            if (io.st.up) {
+            if (q.isDone(msg)) {
                 grid.roll();
                 gameScn._st = 0;
             }
@@ -1050,7 +1080,7 @@
         } else if (grid.hasMove()) {
             gameScn._st = 1;
         } else {
-            db.log('no more moves!');
+            msg.show('No more moves!', 0);
             gameScn._st = 4;
         }
     };
@@ -1063,13 +1093,13 @@
             sprite.sheet.main.tile.bg0.x, sprite.sheet.main.tile.bg0.y, sprite.sheet.main.tile.bg0.w, sprite.sheet.main.tile.bg0.h,
             0, 0, sprite.sheet.main.tile.bg0.w, sprite.sheet.main.tile.bg0.h
         );
-        scn.fb3.cx.drawImage(
+        scn.fb1.cx.drawImage(
             sprite.sheet.main.img,
             sprite.sheet.main.tile.bg1.x, sprite.sheet.main.tile.bg1.y, sprite.sheet.main.tile.bg1.w, sprite.sheet.main.tile.bg1.h,
             0, sprite.sheet.main.tile.bg0.h, sprite.sheet.main.tile.bg1.w << 1, sprite.sheet.main.tile.bg1.h << 1
         );
         sprite.box(
-            scn.fb3.cx,
+            scn.fb1.cx,
             0,
             sprite.sheet.main.tile.bg0.h,
             sprite.sheet.main.tile.bg1.w << 1,
@@ -1078,7 +1108,8 @@
             sprite.sheet.main.tile.wn
         );
         gameScn._st = 0;
-        grid.rst(scn.fb4, 13, sprite.sheet.main.tile.bg0.h + 9, 9, 5);
+        msg.rst(scn.fb2, scn.fb2.cv.width >> 1, ((scn.fb2.cv.height) >> 1) - sprite.sheet.txt.txt.lh);
+        grid.rst(scn.fb2, 13, sprite.sheet.main.tile.bg0.h + 9, 9, 5);
     };
 
     window.document.addEventListener('DOMContentLoaded', function() {
