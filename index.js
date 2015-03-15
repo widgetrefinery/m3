@@ -7,7 +7,7 @@
         q.rst();
         FB.show();
         io.rst(true);
-        scn.run = gameScn;
+        scn.run = initScn;
         scn.run.rst();
         scn();
     }
@@ -604,29 +604,45 @@
     scn.fb3 = new FB();
 
     function fadeAnim(dt, pct) {
-        var a = pct;
-        if (fadeAnim._in) {
-            a = 1 - a;
-        }
         var fb = fadeAnim._fb;
-        fb.cx.fillStyle = fadeAnim._pref + a + ')';
-        fb.cx.fillRect(0, 0, fb.cv.width, fb.cv.height);
-        var g = fb.cx.createRadialGradient(fadeAnim._x, fadeAnim._y, 0, fadeAnim._x, fadeAnim._y, fadeAnim._r);
-        g.addColorStop(0, fadeAnim._pref + '0)');
-        g.addColorStop(0.8, fadeAnim._pref + a + ')');
-        fb.cx.fillStyle = g;
-        fb.cx.fillRect(0, 0, fb.cv.width, fb.cv.height);
+        var tile = sprite.sheet.txt.tile.fd;
+        var x = -tile.w;
+        var w;
+        fb.cx.save();
+        if (fadeAnim._in) {
+            w = ((fb.cv.width + tile.w) * (1 - pct)) | 0
+            fb.cx.translate(fb.cv.width, 0);
+            fb.cx.scale(-1, 1);
+            fb.cx.drawImage(
+                sprite.sheet.txt.img,
+                tile.x, tile.y, tile.w, tile.h,
+                x + w, 0, tile.w, fb.cv.height
+            );
+            if (w > tile.w) {
+                fb.cx.fillStyle = '#000';
+                fb.cx.fillRect(0, 0, w - tile.w, fb.cv.height);
+            }
+        } else {
+            w = ((fb.cv.width + tile.w) * pct) | 0
+            fb.cx.drawImage(
+                sprite.sheet.txt.img,
+                tile.x, tile.y, tile.w, tile.h,
+                x + w, 0, tile.w, fb.cv.height
+            );
+            if (w > tile.w) {
+                fb.cx.fillStyle = '#000';
+                fb.cx.fillRect(0, 0, w - tile.w, fb.cv.height);
+            }
+        }
+        fb.cx.restore();
     }
-    fadeAnim.rst = function(fb, fadeIn, isWhite) {
+    fadeAnim.rst = function(fb, fadeIn) {
         fadeAnim._fb = fb;
         fadeAnim._in = fadeIn;
-        fadeAnim._x = fb.cv.width >> 1;
-        fadeAnim._y = fb.cv.height >> 1;
-        fadeAnim._pref = isWhite ? 'rgba(255,255,255,' : 'rgba(0,0,0,';
-        fadeAnim._r = Math.sqrt(fadeAnim._x * fadeAnim._x + fadeAnim._y * fadeAnim._y);
     };
 
     function initScn() {
+        scn.fb3.clr();
         if (0 >= q.size) {
             scn.run = gameScn;
             gameScn.rst();
@@ -637,8 +653,10 @@
         q.rst();
         FB.rel(false);
         FB.bg(false);
-        fadeAnim.rst(scn.fb2, false, false);
-        q.add(fadeAnim, 0, 2000);
+        scn.fb1.clr();
+        scn.fb2.clr();
+        fadeAnim.rst(scn.fb3, false);
+        q.add(fadeAnim, 0, 1000);
     };
 
     function msg(dt) {
@@ -1453,12 +1471,18 @@
         scn.fb2.clr();
         scn.fb3.clr();
         if (undefined !== winner) {
-            if (q.isDone(msg)) {
-                scn.run = undefined;
+            if (10 > gameScn._st) {
+                gameScn._st = 10;
+            }
+        }
+        if (-1 === gameScn._st) {
+            if (q.isDone(fadeAnim)) {
+                gameScn._st = 0;
             }
         } else if (0 === gameScn._st) {
             if (0 === grid._tiles[0][grid._r - 1].dx) {
                 gameScn._st = 1;
+                hero2.sched();
             }
         } else if (1 === gameScn._st) {
             gameScn.io();
@@ -1474,10 +1498,25 @@
                 grid.roll();
                 gameScn._st = 0;
             }
+        } else if (10 === gameScn._st) {
+            if (q.isDone(msg)) {
+                fadeAnim.rst(scn.fb3, false);
+                q.add(fadeAnim, 0, 1000);
+                gameScn._st = 11;
+            }
+        } else if (11 === gameScn._st) {
+            if (q.isDone(fadeAnim)) {
+                scn.run = exitScn;
+                scn.run.rst();
+                scn.run();
+                return;
+            }
         }
         hero1();
         hero2();
-        grid();
+        if (-1 !== gameScn._st) {
+            grid();
+        }
     }
     gameScn.io = function() {
         if (io.st.dn) {
@@ -1558,7 +1597,9 @@
             sprite.sheet.main,
             sprite.sheet.main.tile.wn
         );
-        msg.rst(scn.fb2, scn.fb2.cv.width >> 1, ((scn.fb2.cv.height) >> 1) - sprite.sheet.txt.txt.lh);
+        fadeAnim.rst(scn.fb3, true);
+        q.add(fadeAnim, 0, 1000);
+        msg.rst(scn.fb3, scn.fb2.cv.width >> 1, ((scn.fb2.cv.height) >> 1) - sprite.sheet.txt.txt.lh);
         hero.rst(
             hero1, 0,
             scn.fb2, scn.fb3, sprite.sheet.main.tile.pl0,
@@ -1581,11 +1622,26 @@
                 new Unit(1, scn.fb2, scn.fb3, -1)
             ]
         );
-        hero2.sched();
         grid.rst(scn.fb2, 13, sprite.sheet.main.tile.bg0.h + 9, 9, 5);
         winner = undefined;
         teams = [[hero1], [hero2]];
-        gameScn._st = 0;
+        gameScn._st = -1;
+    };
+
+    function exitScn() {
+        scn.fb3.clr();
+        if (0 >= q.size) {
+            scn.run = undefined;
+        }
+    }
+    exitScn.rst = function() {
+        q.rst();
+        FB.rel(false);
+        FB.bg(false);
+        scn.fb1.clr();
+        scn.fb2.clr();
+        fadeAnim.rst(scn.fb3, true);
+        q.add(fadeAnim, 0, 1000);
     };
 
     window.document.addEventListener('DOMContentLoaded', function() {
