@@ -250,6 +250,8 @@
                 scn.fb1.cv.style.display = 'none' === scn.fb1.cv.style.display ? 'block' : 'none';
             } else if (io.kb[2] === io.st.kb) {
                 scn.fb2.cv.style.display = 'none' === scn.fb2.cv.style.display ? 'block' : 'none';
+            } else if (io.kb[3] === io.st.kb) {
+                scn.fb3.cv.style.display = 'none' === scn.fb3.cv.style.display ? 'block' : 'none';
             } else if (io.kb[9] === io.st.kb) {
                 db._con = (db._con + 2) % 3;
             } else if (io.kb[0] === io.st.kb) {
@@ -580,13 +582,14 @@
         tick();
         scn.run();
         q();
-        db.con(scn.fb2);
+        db.con(scn.fb3);
         FB.flush();
         io.rst(false);
         requestAnimationFrame(scn);
     }
     scn.fb1 = new FB();
     scn.fb2 = new FB();
+    scn.fb3 = new FB();
 
     function fadeAnim(dt, pct) {
         var a = pct;
@@ -663,11 +666,16 @@
         msg._y = y;
     };
 
+    var teams = [
+        [],
+        []
+    ];
+
     function hero(_hero) {
-        if (0 >= _hero.hp) {
+        if (0 >= _hero.chp) {
             hero.set(_hero, 2);
-        } else if (_hero.hp > _hero.chp) {
-            _hero.hp = Math.max(_hero.hp - 5, _hero.chp);
+        } else if (_hero.chp > _hero.hp) {
+            _hero.chp = Math.max(_hero.chp - 5, _hero.hp);
             hero.set(_hero, 1);
         } else {
             hero.set(_hero, 0);
@@ -693,7 +701,7 @@
         x += (4 * Math.sin(Math.PI * dt / 1000)) | 0;
         var y = _hero.y - _hero.tile.h;
         y += (2 * Math.sin(Math.PI * dt / 500)) | 0;
-        _hero.fb.cx.drawImage(
+        _hero.fb1.cx.drawImage(
             sprite.sheet.main.img,
             _hero.tile.x, _hero.tile.y, _hero.tile.w, _hero.tile.h,
             x, y, _hero.tile.w, _hero.tile.h
@@ -703,7 +711,7 @@
         var amt = Math.sin(Math.PI * dt / 500);
         var w = _hero.tile.w + ((8 * amt) | 0);
         var h = _hero.tile.h - ((16 * amt) | 0);
-        _hero.fb.cx.drawImage(
+        _hero.fb1.cx.drawImage(
             sprite.sheet.main.img,
             _hero.tile.x, _hero.tile.y, _hero.tile.w, _hero.tile.h,
             _hero.x - (w >> 1), _hero.y - h, w, h
@@ -715,20 +723,20 @@
         var h = (s * _hero.tile.h) | 0;
 
         if (2 < w && 2 < h) {
-            _hero.fb.cx.save();
-            _hero.fb.cx.translate(_hero.x, _hero.y - (_hero.tile.h >> 1));
-            _hero.fb.cx.rotate(Math.PI * dt / 500);
-            _hero.fb.cx.drawImage(
+            _hero.fb1.cx.save();
+            _hero.fb1.cx.translate(_hero.x, _hero.y - (_hero.tile.h >> 1));
+            _hero.fb1.cx.rotate(Math.PI * dt / 500);
+            _hero.fb1.cx.drawImage(
                 sprite.sheet.main.img,
                 _hero.tile.x, _hero.tile.y, _hero.tile.w, _hero.tile.h,
                 -(w >> 1), -(h >> 1), w, h
             );
-            _hero.fb.cx.restore();
+            _hero.fb1.cx.restore();
         }
     };
-    hero.rst = function(_hero, team, fb, tile, x, y) {
-        _hero.team = team;
-        _hero.fb = fb;
+    hero.rst = function(_hero, fb1, fb2, tile, x, y) {
+        _hero.fb1 = fb1;
+        _hero.fb2 = fb2;
         _hero.tile = tile;
         _hero.x = x;
         _hero.y = y;
@@ -746,23 +754,24 @@
     hero1.bar = function() {
         var sheet = sprite.sheet.main;
         var tile = sheet.tile.brY;
-        var w1 = (tile.w * hero1.chp / hero1.mhp) | 0;
-        hero1.fb.cx.drawImage(
+        var w1 = (tile.w * hero1.hp / hero1.mhp) | 0;
+        hero1.fb2.cx.drawImage(
             sheet.img,
             tile.x, tile.y, w1, tile.h,
             6, 6, w1, tile.h
         );
 
-        if (hero1.hp > hero1.chp) {
+        if (hero1.chp > hero1.hp) {
             tile = sheet.tile.brR;
-            var w2 = (tile.w * (hero1.hp - hero1.chp) / hero1.mhp) | 0;
-            hero1.fb.cx.drawImage(
+            var w2 = (tile.w * (hero1.chp - hero1.hp) / hero1.mhp) | 0;
+            hero1.fb2.cx.drawImage(
                 sheet.img,
                 tile.x, tile.y, w2, tile.h,
                 6 + w1, 6, w2, tile.h
             );
         }
     };
+    teams[0].push(hero1);
 
     function hero2() {
         hero(hero2);
@@ -771,23 +780,24 @@
     hero2.bar = function() {
         var sheet = sprite.sheet.main;
         var tile = sheet.tile.brY;
-        var w1 = (tile.w * hero2.chp / hero2.mhp) | 0;
-        hero2.fb.cx.drawImage(
+        var w1 = (tile.w * hero2.hp / hero2.mhp) | 0;
+        hero2.fb2.cx.drawImage(
             sheet.img,
             tile.x, tile.y, w1, tile.h,
             392 + tile.w - w1, 6, w1, tile.h
         );
 
-        if (hero2.hp > hero2.chp) {
+        if (hero2.chp > hero2.hp) {
             tile = sheet.tile.brR;
-            var w2 = (tile.w * (hero2.hp - hero2.chp) / hero2.mhp) | 0;
-            hero2.fb.cx.drawImage(
+            var w2 = (tile.w * (hero2.chp - hero2.hp) / hero2.mhp) | 0;
+            hero2.fb2.cx.drawImage(
                 sheet.img,
                 tile.x, tile.y, w2, tile.h,
                 392 + tile.w - w1 - w2, 6, w2, tile.h
             );
         }
     };
+    teams[1].push(hero2);
 
     function Tile(x, y, c, r, type) {
         this._x = x;
@@ -1136,6 +1146,7 @@
 
     function gameScn() {
         scn.fb2.clr();
+        scn.fb3.clr();
         if (0 === gameScn._st) {
             if (0 === grid._tiles[0][grid._r - 1].dx) {
                 gameScn._st = 1;
@@ -1236,8 +1247,8 @@
             sprite.sheet.main.tile.wn
         );
         msg.rst(scn.fb2, scn.fb2.cv.width >> 1, ((scn.fb2.cv.height) >> 1) - sprite.sheet.txt.txt.lh);
-        hero.rst(hero1, 1, scn.fb2, sprite.sheet.main.tile.pl0, 32, sprite.sheet.main.tile.bg0.h);
-        hero.rst(hero2, 2, scn.fb2, sprite.sheet.main.tile.pl1, scn.fb2.cv.width - 32, sprite.sheet.main.tile.bg0.h);
+        hero.rst(hero1, scn.fb2, scn.fb3, sprite.sheet.main.tile.pl0, 32, sprite.sheet.main.tile.bg0.h);
+        hero.rst(hero2, scn.fb2, scn.fb3, sprite.sheet.main.tile.pl1, scn.fb2.cv.width - 32, sprite.sheet.main.tile.bg0.h);
         grid.rst(scn.fb2, 13, sprite.sheet.main.tile.bg0.h + 9, 9, 5);
         gameScn._st = 0;
     };
