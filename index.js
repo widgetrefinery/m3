@@ -17,7 +17,7 @@
     var lang = {
         noMoves: 'No More moves!',
         lose: 'You lost!',
-        win: 'You won!',
+        win: 'You win!',
     };
 
     var sprite = {
@@ -265,9 +265,14 @@
                 db._con = (db._con + 1) % 3;
             }
             if (1 === db._con) {
-                sprite.box(fb.cx, 0, 0, 224, 96, sprite.sheet.main, sprite.sheet.main.tile.dl);
+                sprite.box(fb.cx, 0, 0, 224, 160, sprite.sheet.main, sprite.sheet.main.tile.dl);
                 var fps = (1000 / tick.dt) | 0;
-                sprite.txtL(fb.cx, 16, 16, sprite.sheet.txt, "Pg1\nfps:" + fps);
+                sprite.txtL(
+                    fb.cx, 16, 16, sprite.sheet.txt, 'Pg1'
+                    + '\nfps:' + fps
+                    + '\nq1:' + hero1.units.queue.length
+                    + '\nq2:' + hero2.units.queue.length
+                );
             } else if (2 === db._con) {
                 if (io.kb.up === io.st.kb) {
                     db._sheet = (db._sheet + db._sheets.length - 1) % db._sheets.length;
@@ -749,7 +754,7 @@
         }
 
         if (undefined !== this.enemy) {
-            if (0 >= this.enemy.hp) {
+            if (0 >= this.enemy.hp || this.enemy.immune) {
                 this.enemy = undefined;
                 this.disarmBullets();
                 this.ts = tick.ts;
@@ -890,7 +895,7 @@
         if (_hero.chp > _hero.hp) {
             if (tick.ts >= _hero.ts2) {
                 _hero.chp = Math.max(_hero.chp - 5, _hero.hp);
-                _hero.ts2 = tick.ts + 20;
+                _hero.ts2 = tick.ts + 10;
             }
         }
         if (0 >= _hero.hp) {
@@ -1027,13 +1032,17 @@
             );
         }
     };
+    hero1.maxUnitQueue = 10;
 
     function hero2() {
         hero(hero2);
         hero2.bar();
         if (undefined === winner && tick.ts >= hero2.deploy) {
             hero2.sched();
-            hero2.units.queue.push(hero2.unitTypes[prng(hero2.unitTypes.length)]);
+            var cnt = prng(3);
+            for (var i = 0; i <= cnt; i++) {
+               hero2.units.queue.push(hero2.unitTypes[prng(hero2.unitTypes.length)]);
+            }
         }
     }
     hero2.bar = function() {
@@ -1057,7 +1066,7 @@
         }
     };
     hero2.sched = function() {
-        hero2.deploy = tick.ts + 2000 + prng(2000);
+        hero2.deploy = tick.ts + 2000 + prng(4000);
     };
     hero2.unitTypes = [
         sprite.sheet.main.tile.un0,
@@ -1377,15 +1386,15 @@
                 var tiles = grid.cnt(grid._at);
                 if (3 <= tiles.length) {
                     result = result.concat(tiles);
-                    for (var i = 2; i < tiles.length; i++) {
-                        hero1.units.queue.push(tiles[i]._type.unit);
+                    if (hero1.maxUnitQueue > hero1.units.queue.length) {
+                        hero1.units.queue.push(tiles[0]._type.unit);
                     }
                 }
                 tiles = grid.cnt(tile);
                 if (3 <= tiles.length) {
                     result = result.concat(tiles);
-                    for (var i = 2; i < tiles.length; i++) {
-                        hero1.units.queue.push(tiles[i]._type.unit);
+                    if (hero1.maxUnitQueue > hero1.units.queue.length) {
+                        hero1.units.queue.push(tiles[0]._type.unit);
                     }
                 }
                 if (0 >= result.length) {
@@ -1487,6 +1496,9 @@
                 tiles = grid.cnt(grid._tiles[c][r]);
                 if (3 <= tiles.length) {
                     chain = chain.concat(tiles);
+                    if (hero1.maxUnitQueue > hero1.units.queue.length) {
+                        hero1.units.queue.push(tiles[0]._type.unit);
+                    }
                 }
             }
         }
@@ -1541,7 +1553,7 @@
         hero.rst(
             hero2, 1,
             scn.fb2, scn.fb3, sprite.sheet.main.tile.pl1,
-            scn.fb2.cv.width - 32, sprite.sheet.main.tile.bg0.h, 4000, 40,
+            scn.fb2.cv.width - 32, sprite.sheet.main.tile.bg0.h, 5000, 20,
             [
                 new Unit(1, scn.fb2, scn.fb3, -1),
                 new Unit(1, scn.fb2, scn.fb3, -1),
