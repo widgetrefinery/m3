@@ -15,6 +15,9 @@
     init.wait = 0;
 
     var lang = {
+        noMoves: 'No More moves!',
+        lose: 'You lost!',
+        win: 'You won!',
     };
 
     var sprite = {
@@ -875,6 +878,14 @@
         if (0 >= _hero.hp) {
             _hero.hp = 0;
             winner = 1 - _hero.team;
+            if (!hero.ended) {
+                hero.ended = true;
+                if (0 === _hero.team) {
+                    msg.show(lang.lose, 0);
+                } else {
+                    msg.show(lang.win, 0);
+                }
+            }
         }
         if (_hero.chp > _hero.hp) {
             if (tick.ts >= _hero.ts2) {
@@ -1070,7 +1081,7 @@
     }
     Tile.prototype.upd = function(fb, x0) {
         fb.cx.save();
-        fb.cx.fillStyle = this._type.bg;
+        fb.cx.fillStyle = this._type.tile.bg;
         var x = this._x + this.dx;
         var y = this._y + this.dy;
         var dim = Tile.dim;
@@ -1092,16 +1103,16 @@
         if (undefined !== this.fts) {
             fb.cx.drawImage(
                 sprite.sheet.main.img,
-                this._type.x, this._type.y, this._type.w, this._type.h,
+                this._type.tile.x, this._type.tile.y, this._type.tile.w, this._type.tile.h,
                 x + 1, y + 1, dim - 2, dim - 2
             );
         } else {
             var dx = Math.max(0, x0 - x);
-            if (this._type.w > dx) {
+            if (this._type.tile.w > dx) {
                 fb.cx.drawImage(
                     sprite.sheet.main.img,
-                    this._type.x + dx, this._type.y, this._type.w - dx, this._type.h,
-                    x + dx + 1, y + 1, this._type.w - dx, this._type.h
+                    this._type.tile.x + dx, this._type.tile.y, this._type.tile.w - dx, this._type.tile.h,
+                    x + dx + 1, y + 1, this._type.tile.w - dx, this._type.tile.h
                 );
             }
         }
@@ -1141,13 +1152,13 @@
     Tile.ftd = 500;
     Tile.spd = Tile.dim / 100;
     Tile.types = [
-        sprite.sheet.main.tile.bl0,
-        sprite.sheet.main.tile.bl1,
-        sprite.sheet.main.tile.bl2,
-        sprite.sheet.main.tile.bl3,
-        sprite.sheet.main.tile.bl4,
-        sprite.sheet.main.tile.bl5,
-        sprite.sheet.main.tile.bl6
+        {tile: sprite.sheet.main.tile.bl0, unit: sprite.sheet.main.tile.un0},
+        {tile: sprite.sheet.main.tile.bl1, unit: sprite.sheet.main.tile.un1},
+        {tile: sprite.sheet.main.tile.bl2, unit: sprite.sheet.main.tile.un2},
+        {tile: sprite.sheet.main.tile.bl3, unit: sprite.sheet.main.tile.un3},
+        {tile: sprite.sheet.main.tile.bl4, unit: sprite.sheet.main.tile.un4},
+        {tile: sprite.sheet.main.tile.bl5, unit: sprite.sheet.main.tile.un5},
+        {tile: sprite.sheet.main.tile.bl6, unit: sprite.sheet.main.tile.un6}
     ];
     Tile.near = [
         {c: -1, r: 0},
@@ -1366,10 +1377,16 @@
                 var tiles = grid.cnt(grid._at);
                 if (3 <= tiles.length) {
                     result = result.concat(tiles);
+                    for (var i = 2; i < tiles.length; i++) {
+                        hero1.units.queue.push(tiles[i]._type.unit);
+                    }
                 }
                 tiles = grid.cnt(tile);
                 if (3 <= tiles.length) {
                     result = result.concat(tiles);
+                    for (var i = 2; i < tiles.length; i++) {
+                        hero1.units.queue.push(tiles[i]._type.unit);
+                    }
                 }
                 if (0 >= result.length) {
                     Tile.swp(grid._at, tile);
@@ -1406,7 +1423,11 @@
     function gameScn() {
         scn.fb2.clr();
         scn.fb3.clr();
-        if (0 === gameScn._st) {
+        if (undefined !== winner) {
+            if (q.isDone(msg)) {
+                scn.run = undefined;
+            }
+        } else if (0 === gameScn._st) {
             if (0 === grid._tiles[0][grid._r - 1].dx) {
                 gameScn._st = 1;
             }
@@ -1478,7 +1499,7 @@
         } else if (grid.hasMove()) {
             gameScn._st = 1;
         } else {
-            msg.show('No more moves!', 0);
+            msg.show(lang.noMoves, 0);
             gameScn._st = 4;
         }
     };
@@ -1509,7 +1530,7 @@
         hero.rst(
             hero1, 0,
             scn.fb2, scn.fb3, sprite.sheet.main.tile.pl0,
-            32, sprite.sheet.main.tile.bg0.h, 1000, 50,
+            32, sprite.sheet.main.tile.bg0.h, 5000, 50,
             [
                 new Unit(0, scn.fb2, scn.fb3, 1),
                 new Unit(0, scn.fb2, scn.fb3, 1),
@@ -1520,7 +1541,7 @@
         hero.rst(
             hero2, 1,
             scn.fb2, scn.fb3, sprite.sheet.main.tile.pl1,
-            scn.fb2.cv.width - 32, sprite.sheet.main.tile.bg0.h, 1000, 40,
+            scn.fb2.cv.width - 32, sprite.sheet.main.tile.bg0.h, 4000, 40,
             [
                 new Unit(1, scn.fb2, scn.fb3, -1),
                 new Unit(1, scn.fb2, scn.fb3, -1),
@@ -1529,7 +1550,6 @@
             ]
         );
         hero2.sched();
-        hero1.units.queue = [sprite.sheet.main.tile.un0];
         grid.rst(scn.fb2, 13, sprite.sheet.main.tile.bg0.h + 9, 9, 5);
         winner = undefined;
         teams = [[hero1], [hero2]];
