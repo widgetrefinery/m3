@@ -1,13 +1,12 @@
 (function() {
     function init() {
-        if (!init.dom ||  0 < init.wait) {
+        if (!init.dom ||  0 < init.wait || undefined === scn.run) {
             return;
         }
         tick.rst();
         q.rst();
         FB.show();
         io.rst(true);
-        scn.run = initScn;
         scn.run.rst();
         scn();
     }
@@ -835,7 +834,7 @@
             this.immune = false;
             this.ts = tick.ts;
             this.idle();
-        } else {
+        } else if (0 < h) {
             this.fb1.cx.save();
             this.fb1.cx.translate(this.x, this.y - this.tile.h);
             if (0 < this.dx) {
@@ -1024,6 +1023,7 @@
             queue: [],
             ts: tick.ts
         };
+        hero.ended = false;
     };
     hero.maxUnitQueue = 10;
 
@@ -1035,20 +1035,24 @@
         var sheet = sprite.sheet.main;
         var tile = sheet.tile.brY;
         var w1 = (tile.w * hero1.hp / hero1.mhp) | 0;
-        hero1.fb2.cx.drawImage(
-            sheet.img,
-            tile.x, tile.y, w1, tile.h,
-            6, 6, w1, tile.h
-        );
+        if (0 < w1) {
+            hero1.fb2.cx.drawImage(
+                sheet.img,
+                tile.x, tile.y, w1, tile.h,
+                6, 6, w1, tile.h
+            );
+        }
 
         if (hero1.chp > hero1.hp) {
             tile = sheet.tile.brR;
             var w2 = (tile.w * (hero1.chp - hero1.hp) / hero1.mhp) | 0;
-            hero1.fb2.cx.drawImage(
-                sheet.img,
-                tile.x, tile.y, w2, tile.h,
-                6 + w1, 6, w2, tile.h
-            );
+            if (0 < w2) {
+                hero1.fb2.cx.drawImage(
+                    sheet.img,
+                    tile.x, tile.y, w2, tile.h,
+                    6 + w1, 6, w2, tile.h
+                );
+            }
         }
 
         tile = sheet.tile.dl.sw;
@@ -1063,7 +1067,7 @@
 
     function hero2() {
         hero(hero2);
-        if (undefined === winner && tick.ts >= hero2.deploy) {
+        if (undefined === winner && undefined !== hero2.deploy && tick.ts >= hero2.deploy) {
             hero2.sched();
             var cnt = prng(3);
             for (var i = 0; i <= cnt; i++) {
@@ -1078,20 +1082,24 @@
         var sheet = sprite.sheet.main;
         var tile = sheet.tile.brY;
         var w1 = (tile.w * hero2.hp / hero2.mhp) | 0;
-        hero2.fb2.cx.drawImage(
-            sheet.img,
-            tile.x, tile.y, w1, tile.h,
-            392 + tile.w - w1, 6, w1, tile.h
-        );
+        if (0 < w1) {
+            hero2.fb2.cx.drawImage(
+                sheet.img,
+                tile.x, tile.y, w1, tile.h,
+                392 + tile.w - w1, 6, w1, tile.h
+            );
+        }
 
         if (hero2.chp > hero2.hp) {
             tile = sheet.tile.brR;
             var w2 = (tile.w * (hero2.chp - hero2.hp) / hero2.mhp) | 0;
-            hero2.fb2.cx.drawImage(
-                sheet.img,
-                tile.x, tile.y, w2, tile.h,
-                392 + tile.w - w1 - w2, 6, w2, tile.h
-            );
+            if (0 < w2) {
+                hero2.fb2.cx.drawImage(
+                    sheet.img,
+                    tile.x, tile.y, w2, tile.h,
+                    392 + tile.w - w1 - w2, 6, w2, tile.h
+                );
+            }
         }
 
         tile = sheet.tile.dl.sw;
@@ -1464,6 +1472,7 @@
             }
         }
         grid._at = undefined;
+        grid._zt = undefined;
         grid.roll();
     };
 
@@ -1603,7 +1612,7 @@
         hero.rst(
             hero1, 0,
             scn.fb2, scn.fb3, sprite.sheet.main.tile.pl0,
-            32, sprite.sheet.main.tile.bg0.h, 5000, 50,
+            32, sprite.sheet.main.tile.bg0.h, 5000, 30,
             [
                 new Unit(0, scn.fb2, scn.fb3, 1),
                 new Unit(0, scn.fb2, scn.fb3, 1),
@@ -1622,6 +1631,7 @@
                 new Unit(1, scn.fb2, scn.fb3, -1)
             ]
         );
+        hero2.deploy = undefined;
         grid.rst(scn.fb2, 13, sprite.sheet.main.tile.bg0.h + 9, 9, 5);
         winner = undefined;
         teams = [[hero1], [hero2]];
@@ -1650,5 +1660,12 @@
         }
         init.dom = true;
         init();
+    });
+
+    window.document.addEventListener('mousedown', function() {
+        if (undefined === scn.run) {
+            scn.run = initScn;
+            init();
+        }
     });
 })();
