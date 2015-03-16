@@ -566,6 +566,41 @@
         _msOut: function(e) {
             io.st.up = true;
         },
+        _tcDn: function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            for (var i = 0; i < e.changedTouches.length; i++) {
+                if (undefined === io.st._tc || e.changedTouches[i].identifier === io.st._tc) {
+                    io.st._tc = e.changedTouches[i].identifier;
+                    io._coords.call(this, e.changedTouches[i]);
+                    io.st.x0 = io.st.x1;
+                    io.st.y0 = io.st.y1;
+                    io.st.dn = true;
+                    break;
+                }
+            }
+        },
+        _tcMv: function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            for (var i = 0; i < e.changedTouches.length; i++) {
+                if (e.changedTouches[i].identifier === io.st._tc) {
+                    io._coords.call(this, e.changedTouches[i]);
+                    break;
+                }
+            }
+        },
+        _tcUp: function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            for (var i = 0; i < e.changedTouches.length; i++) {
+                if (e.changedTouches[i].identifier === io.st._tc) {
+                    io.st._tc = undefined;
+                    io._coords.call(this, e.changedTouches[i]);
+                    io.st.up = true;
+                }
+            }
+        },
         rst: function(full) {
             if (full || io.st.up) {
                io.st.x0 = undefined;
@@ -583,7 +618,10 @@
     FB._cv.addEventListener('mousemove', io._msMv);
     FB._cv.addEventListener('mouseup', io._msUp);
     FB._cv.addEventListener('mouseout', io._msOut);
-    //todo: window.document.addEventListener('touchstart', io._ts);
+    FB._cv.addEventListener('touchstart', io._tcDn);
+    FB._cv.addEventListener('touchmove', io._tcMv);
+    FB._cv.addEventListener('touchend', io._tcUp);
+    FB._cv.addEventListener('touchcancel', io._tcUp);
 
     function scn() {
         if (!scn.run) {
@@ -1663,6 +1701,12 @@
     });
 
     window.document.addEventListener('mousedown', function() {
+        if (undefined === scn.run) {
+            scn.run = initScn;
+            init();
+        }
+    });
+    window.document.addEventListener('touchstart', function() {
         if (undefined === scn.run) {
             scn.run = initScn;
             init();
