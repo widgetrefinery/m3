@@ -859,7 +859,7 @@
         var dt = tick.ts - this.ts;
         var dx = (dt / 10) | 0;
         if (0 < dx) {
-            this.x += dx * this.dx;
+            this.x += this.dx;
             this.y = (this.y0 + 8 * Math.sin(Math.PI * (this.x - this.x0) / 64)) | 0;
             this.ts = tick.ts;
         }
