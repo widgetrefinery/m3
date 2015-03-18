@@ -1103,26 +1103,15 @@
             4, 4, tile.w, tile.h
         );
 
-        tile = sheet.tile.br0;
-        var w1 = (tile.w * hero1.hp / hero1.mhp) | 0;
+        var w1 = hero1.hp / hero1.mhp;
+        tile = (w1 > 0.25) ? sheet.tile.br0 : sheet.tile.br1;
+        w1 = (tile.w * w1) | 0;
         if (0 < w1) {
             hero1.fb2.cx.drawImage(
                 sheet.img,
                 tile.x, tile.y, w1, tile.h,
                 43, 6, w1, tile.h
             );
-        }
-
-        if (hero1.chp > hero1.hp) {
-            tile = sheet.tile.br1;
-            var w2 = (tile.w * (hero1.chp - hero1.hp) / hero1.mhp) | 0;
-            if (0 < w2) {
-                hero1.fb2.cx.drawImage(
-                    sheet.img,
-                    tile.x, tile.y, w2, tile.h,
-                    43 + w1, 6, w2, tile.h
-                );
-            }
         }
 
         for (var i = 0; i < hero1.units.queue.length; i++) {
@@ -1182,26 +1171,15 @@
             hero2.fb2.cv.width - 4 - tile.w, 4, tile.w, tile.h
         );
 
-        tile = sheet.tile.br0;
-        var w1 = (tile.w * hero2.hp / hero2.mhp) | 0;
+        var w1 = hero2.hp / hero2.mhp;
+        tile = (w1 > 0.25) ? sheet.tile.br0 : sheet.tile.br1;
+        w1 = (tile.w * w1) | 0;
         if (0 < w1) {
             hero2.fb2.cx.drawImage(
                 sheet.img,
                 tile.x, tile.y, w1, tile.h,
                 hero2.fb2.cv.width - 43 - w1, 6, w1, tile.h
             );
-        }
-
-        if (hero2.chp > hero2.hp) {
-            tile = sheet.tile.br1;
-            var w2 = (tile.w * (hero2.chp - hero2.hp) / hero2.mhp) | 0;
-            if (0 < w2) {
-                hero2.fb2.cx.drawImage(
-                    sheet.img,
-                    tile.x, tile.y, w2, tile.h,
-                    hero2.fb2.cv.width - 43 - w1 - w2, 6, w2, tile.h
-                );
-            }
         }
 
         for (var i = 0; i < hero2.units.queue.length; i++) {
