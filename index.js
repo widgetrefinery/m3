@@ -569,8 +569,10 @@
             }
         },
         _msUp: function(e) {
-            io._coords.call(this, e);
-            io.st.up = true;
+            if (undefined !== io.st.x0) {
+                io._coords.call(this, e);
+                io.st.up = true;
+            }
         },
         _msOut: function(e) {
             if (undefined !== io.st.x0) {
