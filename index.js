@@ -915,9 +915,13 @@
             -(this.tile.w >> 1), 0, this.tile.w, this.tile.h
         );
         this.fb1.cx.restore();
+        if (db.val) {
+            sprite.txtC(this.fb2.cx, this.x, this.y, sprite.sheet.txt, '' + this.hp);
+        }
     };
-    Unit.prototype.rst = function(tile, x, y, hp) {
+    Unit.prototype.rst = function(tile, icon, x, y, hp, coords) {
         this.tile = tile;
+        this.icon = icon;
         this.x = x;
         this.x0 = x + prng(128);
         this.y0 = y;
@@ -926,6 +930,7 @@
         this.hp = hp;
         this.enemy = undefined;
         this.immune = true;
+        this.coords = coords;
     };
     Unit.defeated = function(unit) {
         unit.disarmBullets();
@@ -1047,11 +1052,10 @@
             }
         }
 
-        if (0 < _hero.units.queue.length && 0 < _hero.units.reserve.length && tick.ts - _hero.units.ts > 500 && _hero.units.queue[0].ts + hero.unitDelay < tick.ts) {
-            var unitType = _hero.units.queue.shift();
+        if (hero.maxUnits > teams[_hero.team].length && 0 < _hero.units.queue.length && tick.ts - _hero.units.ts > 500 && _hero.units.queue[0].ts + hero.unitDelay < tick.ts) {
+            var unit = _hero.units.queue.shift();
             _hero.units.ts = tick.ts;
-            unit = _hero.units.reserve.pop();
-            unit.rst(unitType.unit, _hero.x, _hero.y, _hero.uhp);
+            unit.ts = tick.ts;
             units.push(unit);
         }
 
@@ -1080,6 +1084,7 @@
         };
         hero.ended = false;
     };
+    hero.maxUnits = 5;
     hero.maxUnitQueue = 9;
     hero.unitDelay = 800;
 
@@ -1145,8 +1150,12 @@
             hero2.sched();
             var cnt = prng(3);
             for (var i = 0; i <= cnt; i++) {
-                if (hero.maxUnitQueue > hero2.units.queue.length) {
-                    hero2.units.queue.push(hero2.unitTypes[prng(hero2.unitTypes.length)]);
+                if (hero.maxUnitQueue > hero2.units.queue.length && 0 < hero2.units.reserve.length) {
+                    var unit = hero2.units.reserve.pop();
+                    var type = hero2.unitTypes[prng(hero2.unitTypes.length)];
+                    unit.rst(type.unit, type.icon, hero2.x, hero2.y, hero2.uhp, []);
+                    unit.ts = 0;
+                    hero2.units.queue.push(unit);
                 }
             }
         }
@@ -1195,13 +1204,13 @@
         hero2.deploy = tick.ts + 2000 + prng(4000);
     };
     hero2.unitTypes = [
-        {unit: sprite.sheet.main.tile.un0, icon: sprite.sheet.main.tile.dt0, ts: 0},
-        {unit: sprite.sheet.main.tile.un1, icon: sprite.sheet.main.tile.dt1, ts: 0},
-        {unit: sprite.sheet.main.tile.un2, icon: sprite.sheet.main.tile.dt2, ts: 0},
-        {unit: sprite.sheet.main.tile.un3, icon: sprite.sheet.main.tile.dt3, ts: 0},
-        {unit: sprite.sheet.main.tile.un4, icon: sprite.sheet.main.tile.dt4, ts: 0},
-        {unit: sprite.sheet.main.tile.un5, icon: sprite.sheet.main.tile.dt5, ts: 0},
-        {unit: sprite.sheet.main.tile.un6, icon: sprite.sheet.main.tile.dt6, ts: 0}
+        {unit: sprite.sheet.main.tile.un0, icon: sprite.sheet.main.tile.dt0},
+        {unit: sprite.sheet.main.tile.un1, icon: sprite.sheet.main.tile.dt1},
+        {unit: sprite.sheet.main.tile.un2, icon: sprite.sheet.main.tile.dt2},
+        {unit: sprite.sheet.main.tile.un3, icon: sprite.sheet.main.tile.dt3},
+        {unit: sprite.sheet.main.tile.un4, icon: sprite.sheet.main.tile.dt4},
+        {unit: sprite.sheet.main.tile.un5, icon: sprite.sheet.main.tile.dt5},
+        {unit: sprite.sheet.main.tile.un6, icon: sprite.sheet.main.tile.dt6}
     ];
 
     function Tile(x, y, c, r, type) {
@@ -1512,23 +1521,27 @@
                 var tiles = grid.cnt(grid._at);
                 if (3 <= tiles.length) {
                     result = result.concat(tiles);
-                    if (hero.maxUnitQueue > hero1.units.queue.length) {
+                    if (hero.maxUnitQueue > hero1.units.queue.length && 0 < hero1.units.reserve.length) {
                         var coords = [];
                         for (var i = 0; i < tiles.length; i++) {
                             coords.push({x: tiles[i]._x + (Tile.dim >> 1), y: tiles[i]._y + (Tile.dim >> 1)});
                         }
-                        hero1.units.queue.push({unit: tiles[0]._type.unit, icon: tiles[0]._type.icon, ts: tick.ts, coords: coords});
+                        var unit = hero1.units.reserve.pop();
+                        unit.rst(tiles[0]._type.unit, tiles[0]._type.icon, hero1.x, hero1.y, hero1.uhp * (tiles.length - 2), coords);
+                        hero1.units.queue.push(unit);
                     }
                 }
                 tiles = grid.cnt(tile);
                 if (3 <= tiles.length) {
                     result = result.concat(tiles);
-                    if (hero.maxUnitQueue > hero1.units.queue.length) {
+                    if (hero.maxUnitQueue > hero1.units.queue.length && 0 < hero1.units.reserve.length) {
                         var coords = [];
                         for (var i = 0; i < tiles.length; i++) {
                             coords.push({x: tiles[i]._x + (Tile.dim >> 1), y: tiles[i]._y + (Tile.dim >> 1)});
                         }
-                        hero1.units.queue.push({unit: tiles[0]._type.unit, icon: tiles[0]._type.icon, ts: tick.ts, coords: coords});
+                        var unit = hero1.units.reserve.pop();
+                        unit.rst(tiles[0]._type.unit, tiles[0]._type.icon, hero1.x, hero1.y, hero1.uhp * (tiles.length - 2), coords);
+                        hero1.units.queue.push(unit);
                     }
                 }
                 if (0 >= result.length) {
@@ -1652,12 +1665,14 @@
                 tiles = grid.cnt(grid._tiles[c][r]);
                 if (3 <= tiles.length) {
                     chain = chain.concat(tiles);
-                    if (hero.maxUnitQueue > hero1.units.queue.length) {
+                    if (hero.maxUnitQueue > hero1.units.queue.length && 0 < hero1.units.reserve.length) {
                         var coords = [];
                         for (var i = 0; i < tiles.length; i++) {
                             coords.push({x: tiles[i]._x + (Tile.dim >> 1), y: tiles[i]._y + (Tile.dim >> 1)});
                         }
-                        hero1.units.queue.push({unit: tiles[0]._type.unit, icon: tiles[0]._type.icon, ts: tick.ts, coords: coords});
+                        var unit = hero1.units.reserve.pop();
+                        unit.rst(tiles[0]._type.unit, tiles[0]._type.icon, hero1.x, hero1.y, hero1.uhp * (tiles.length - 2), coords);
+                        hero1.units.queue.push(unit);
                     }
                 }
             }
@@ -1709,6 +1724,15 @@
                 new Unit(0, scn.fb2, scn.fb3, 1),
                 new Unit(0, scn.fb2, scn.fb3, 1),
                 new Unit(0, scn.fb2, scn.fb3, 1),
+                new Unit(0, scn.fb2, scn.fb3, 1),
+                new Unit(0, scn.fb2, scn.fb3, 1),
+                new Unit(0, scn.fb2, scn.fb3, 1),
+                new Unit(0, scn.fb2, scn.fb3, 1),
+                new Unit(0, scn.fb2, scn.fb3, 1),
+                new Unit(0, scn.fb2, scn.fb3, 1),
+                new Unit(0, scn.fb2, scn.fb3, 1),
+                new Unit(0, scn.fb2, scn.fb3, 1),
+                new Unit(0, scn.fb2, scn.fb3, 1),
                 new Unit(0, scn.fb2, scn.fb3, 1)
             ]
         );
@@ -1717,6 +1741,15 @@
             scn.fb2, scn.fb3, sprite.sheet.main.tile.pl1,
             scn.fb2.cv.width - 32, sprite.sheet.main.tile.bg0.h, 5000, 20,
             [
+                new Unit(1, scn.fb2, scn.fb3, -1),
+                new Unit(1, scn.fb2, scn.fb3, -1),
+                new Unit(1, scn.fb2, scn.fb3, -1),
+                new Unit(1, scn.fb2, scn.fb3, -1),
+                new Unit(1, scn.fb2, scn.fb3, -1),
+                new Unit(1, scn.fb2, scn.fb3, -1),
+                new Unit(1, scn.fb2, scn.fb3, -1),
+                new Unit(1, scn.fb2, scn.fb3, -1),
+                new Unit(1, scn.fb2, scn.fb3, -1),
                 new Unit(1, scn.fb2, scn.fb3, -1),
                 new Unit(1, scn.fb2, scn.fb3, -1),
                 new Unit(1, scn.fb2, scn.fb3, -1),
