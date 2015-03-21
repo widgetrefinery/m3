@@ -1351,7 +1351,8 @@
     grid.io = function() {
         if (io.st.dn) {
             grid.ondn();
-        } else if (undefined === grid._at) {
+        }
+        if (undefined === io.st.x0 || undefined === grid._at) {
             return;
         }
         if (!io.st.up) {
