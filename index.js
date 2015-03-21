@@ -569,13 +569,13 @@
             }
         },
         _msUp: function(e) {
-            if (0 === e.button) {
-                io._coords.call(this, e);
-                io.st.up = true;
-            }
+            io._coords.call(this, e);
+            io.st.up = true;
         },
         _msOut: function(e) {
-            io.st.up = true;
+            if (undefined !== io.st.x0) {
+                io.st.up = true;
+            }
         },
         _tcDn: function(e) {
             e.preventDefault();
@@ -1350,9 +1350,10 @@
     grid.io = function() {
         if (io.st.dn) {
             grid.ondn();
-        } else if (undefined === io.st.x0 || undefined === grid._at) {
+        } else if (undefined === grid._at) {
             return;
-        } else if (!io.st.up) {
+        }
+        if (!io.st.up) {
             grid.onmv();
         } else {
             var tiles = grid.onup();
