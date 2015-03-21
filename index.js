@@ -14,9 +14,9 @@
     init.wait = 0;
 
     var lang = {
-        noMoves: 'No More moves!',
-        lose: 'You lost!',
-        win: 'You win!',
+        noMoves: 'You have no\nmore moves!',
+        lose: 'You failed\nyour pokemon!',
+        win: 'You are the\npokemaster!',
     };
 
     var sprite = {
@@ -708,7 +708,7 @@
     };
 
     function msg(dt) {
-        var bgw = msg._txt.length * sprite.sheet.txt.txt.sp;
+        var bgw = 12 * sprite.sheet.txt.txt.sp;
         var bgt = sprite.sheet.main.tile.dl;
         var txt = msg._txt;
         if (500 > dt) {
@@ -725,17 +725,18 @@
         bgw = (bgw + bgt.nw.w + bgt.ne.w) | 0;
         sprite.box(
             msg._fb.cx,
-            msg._x - (bgw >> 1), msg._y, bgw, bgt.nw.h + bgt.cw.h + bgt.sw.h,
+            msg._x - (bgw >> 1), msg._y, bgw, bgt.nw.h + bgt.cw.h + sprite.sheet.txt.txt.sp * 2,
             sprite.sheet.main, bgt
         );
         sprite.txtL(
             msg._fb.cx,
-            msg._x - ((msg._txt.length * sprite.sheet.txt.txt.sp) >> 1), msg._y + 16,
+            msg._x - (6 * sprite.sheet.txt.txt.sp), msg._y + 16,
             sprite.sheet.txt, txt
         );
     }
     msg.show = function(txt, ts) {
         msg._txt = txt;
+        q.del(msg);
         q.add(msg, ts, 0);
     };
     msg.rst = function(fb, x, y) {
