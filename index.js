@@ -1312,6 +1312,28 @@
     ];
 
     function grid() {
+        if (0 === grid._st) {
+            if (0 === grid._tiles[0][grid._r - 1].dx) {
+                grid._st = 1;
+                hero2.sched();
+            }
+        } else if (1 === grid._st) {
+            if (undefined === winner) {
+                grid.io();
+            }
+        } else if (2 === grid._st) {
+            if (grid._fTiles[0].fts + Tile.ftd <= tick.ts) {
+                grid._chk = grid.replace(grid._fTiles);
+                grid._st = 3;
+            }
+        } else if (3 === grid._st) {
+            grid.wait();
+        } else if (4 === grid._st) {
+            if (q.isDone(msg)) {
+                grid.roll();
+                grid._st = 0;
+            }
+        }
         for (var c = 0; c < grid._c; c++) {
             for (var r = 0; r < grid._r; r++) {
                 var tile = grid._tiles[c][r];
@@ -1325,6 +1347,68 @@
             grid._zt.upd(grid._fb, grid._x);
         }
     }
+    grid.io = function() {
+        if (io.st.dn) {
+            grid.ondn();
+        } else if (undefined === io.st.x0 || undefined === grid._at) {
+            return;
+        } else if (!io.st.up) {
+            grid.onmv();
+        } else {
+            var tiles = grid.onup();
+            if (0 >= tiles.length) {
+                return;
+            }
+            for (var i = 0; i < tiles.length; i++) {
+                tiles[i].fts = tick.ts;
+            }
+            grid._fTiles = tiles;
+            grid._st = 2;
+        }
+    };
+    grid.wait = function() {
+        for (var r = 0; r < grid._r; r++) {
+            if (undefined === grid._chk[r]) {
+                continue;
+            }
+            if (0 !== grid._tiles[0][r].dx) {
+                return;
+            }
+        }
+        var chain = [];
+        for (r = 0; r < grid._r; r++) {
+            if (undefined === grid._chk[r]) {
+                continue;
+            }
+            for (var c = grid._chk[r]; c >= 0; c--) {
+                tiles = grid.cnt(grid._tiles[c][r]);
+                if (3 <= tiles.length) {
+                    chain = chain.concat(tiles);
+                    if (hero.maxUnitQueue > hero1.units.queue.length && 0 < hero1.units.reserve.length) {
+                        var coords = [];
+                        for (var i = 0; i < tiles.length; i++) {
+                            coords.push({x: tiles[i]._x + (Tile.dim >> 1), y: tiles[i]._y + (Tile.dim >> 1)});
+                        }
+                        var unit = hero1.units.reserve.pop();
+                        unit.rst(tiles[0]._type.unit, tiles[0]._type.icon, hero1.x, hero1.y, hero1.uhp * (tiles.length - 2), coords);
+                        hero1.units.queue.push(unit);
+                    }
+                }
+            }
+        }
+        if (0 < chain.length) {
+            for (var i = 0; i < chain.length; i++) {
+                chain[i].fts = tick.ts;
+            }
+            grid._fTiles = chain;
+            grid._st = 2;
+        } else if (grid.hasMove()) {
+            grid._st = 1;
+        } else {
+            msg.show(lang.noMoves, 0);
+            grid._st = 4;
+        }
+    };
     grid.roll = function() {
         for (var c = 0; c < grid._c; c++) {
             var t = c % Tile.types.length;
@@ -1574,47 +1658,28 @@
         }
         grid._at = undefined;
         grid._zt = undefined;
+        grid._st = 0;
         grid.roll();
     };
 
     function gameScn() {
         scn.fb2.clr();
         scn.fb3.clr();
-        if (undefined !== winner) {
-            if (10 > gameScn._st) {
-                gameScn._st = 10;
-            }
-        }
-        if (-1 === gameScn._st) {
+        if (0 === gameScn._st) {
             if (q.isDone(fadeAnim)) {
-                gameScn._st = 0;
-            }
-        } else if (0 === gameScn._st) {
-            if (0 === grid._tiles[0][grid._r - 1].dx) {
                 gameScn._st = 1;
-                hero2.sched();
             }
         } else if (1 === gameScn._st) {
-            gameScn.io();
+            if (undefined !== winner) {
+                gameScn._st = 2;
+            }
         } else if (2 === gameScn._st) {
-            if (gameScn._fTiles[0].fts + Tile.ftd <= tick.ts) {
-                gameScn._chk = grid.replace(gameScn._fTiles);
-                gameScn._st = 3;
-            }
-        } else if (3 === gameScn._st) {
-            gameScn.wait();
-        } else if (4 === gameScn._st) {
-            if (q.isDone(msg)) {
-                grid.roll();
-                gameScn._st = 0;
-            }
-        } else if (10 === gameScn._st) {
             if (q.isDone(msg)) {
                 fadeAnim.rst(scn.fb3, false);
                 q.add(fadeAnim, 0, 1000);
-                gameScn._st = 11;
+                gameScn._st = 3;
             }
-        } else if (11 === gameScn._st) {
+        } else if (3 === gameScn._st) {
             if (q.isDone(fadeAnim)) {
                 scn.run = exitScn;
                 scn.run.rst();
@@ -1624,72 +1689,10 @@
         }
         hero1();
         hero2();
-        if (-1 !== gameScn._st) {
+        if (0 !== gameScn._st) {
             grid();
         }
     }
-    gameScn.io = function() {
-        if (io.st.dn) {
-            grid.ondn();
-        } else if (undefined === io.st.x0 || undefined === grid._at) {
-            return;
-        } else if (!io.st.up) {
-            grid.onmv();
-        } else {
-            var tiles = grid.onup();
-            if (0 >= tiles.length) {
-                return;
-            }
-            for (var i = 0; i < tiles.length; i++) {
-                tiles[i].fts = tick.ts;
-            }
-            gameScn._fTiles = tiles;
-            gameScn._st = 2;
-        }
-    };
-    gameScn.wait = function() {
-        for (var r = 0; r < grid._r; r++) {
-            if (undefined === gameScn._chk[r]) {
-                continue;
-            }
-            if (0 !== grid._tiles[0][r].dx) {
-                return;
-            }
-        }
-        var chain = [];
-        for (r = 0; r < grid._r; r++) {
-            if (undefined === gameScn._chk[r]) {
-                continue;
-            }
-            for (var c = gameScn._chk[r]; c >= 0; c--) {
-                tiles = grid.cnt(grid._tiles[c][r]);
-                if (3 <= tiles.length) {
-                    chain = chain.concat(tiles);
-                    if (hero.maxUnitQueue > hero1.units.queue.length && 0 < hero1.units.reserve.length) {
-                        var coords = [];
-                        for (var i = 0; i < tiles.length; i++) {
-                            coords.push({x: tiles[i]._x + (Tile.dim >> 1), y: tiles[i]._y + (Tile.dim >> 1)});
-                        }
-                        var unit = hero1.units.reserve.pop();
-                        unit.rst(tiles[0]._type.unit, tiles[0]._type.icon, hero1.x, hero1.y, hero1.uhp * (tiles.length - 2), coords);
-                        hero1.units.queue.push(unit);
-                    }
-                }
-            }
-        }
-        if (0 < chain.length) {
-            for (var i = 0; i < chain.length; i++) {
-                chain[i].fts = tick.ts;
-            }
-            gameScn._fTiles = chain;
-            gameScn._st = 2;
-        } else if (grid.hasMove()) {
-            gameScn._st = 1;
-        } else {
-            msg.show(lang.noMoves, 0);
-            gameScn._st = 4;
-        }
-    };
     gameScn.rst = function() {
         q.rst();
         FB.rel(true);
@@ -1760,7 +1763,7 @@
         grid.rst(scn.fb2, 13, sprite.sheet.main.tile.bg0.h + 9, 9, 5);
         winner = undefined;
         teams = [[hero1], [hero2]];
-        gameScn._st = -1;
+        gameScn._st = 0;
     };
 
     function exitScn() {
