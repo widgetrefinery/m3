@@ -727,17 +727,18 @@
         bgw = (bgw + bgt.nw.w + bgt.ne.w) | 0;
         sprite.box(
             msg._fb.cx,
-            msg._x - (bgw >> 1), msg._y, bgw, bgt.nw.h + bgt.cw.h + sprite.sheet.txt.txt.sp * 2,
+            msg._x - (bgw >> 1), msg._y, bgw, msg._h,
             sprite.sheet.main, bgt
         );
         sprite.txtL(
             msg._fb.cx,
-            msg._x - (6 * sprite.sheet.txt.txt.sp), msg._y + 16,
+            msg._x - ((bgw - sprite.sheet.txt.txt.sp) >> 1), msg._y + (sprite.sheet.txt.txt.lh >> 1),
             sprite.sheet.txt, txt
         );
     }
     msg.show = function(txt, ts) {
         msg._txt = txt;
+        msg._h = sprite.sheet.txt.txt.sp * (txt.split('\n').length + 1);
         q.del(msg);
         q.add(msg, ts, 0);
     };
