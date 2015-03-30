@@ -566,6 +566,9 @@
         _msMv: function(e) {
             if (undefined !== io.st.x0) {
                 io._coords.call(this, e);
+                if (0 === e.which) {
+                    io.st.up = true;
+                }
             }
         },
         _msUp: function(e) {
@@ -781,7 +784,7 @@
                 var f = (dt * sprite.anim) | 0;
                 var anim = sprite.sheet.main.anim.sm;
                 if (f < anim.length) {
-                    var dy = dt / 50;
+                    var dy = (dt / 50) | 0;
                     fb.cx.drawImage(
                         sprite.sheet.main.img,
                         anim[f].x, anim[f].y, anim[f].w, anim[f].h,
